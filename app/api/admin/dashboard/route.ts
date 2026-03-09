@@ -45,6 +45,7 @@ export async function GET(request: NextRequest) {
           id,
           name,
           rule_type,
+          scoring_rule_type,
           active,
           number_of_players,
           first_round_weeks,

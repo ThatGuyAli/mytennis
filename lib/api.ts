@@ -76,6 +76,7 @@ export function createAdminLeague(
   body: {
     name: string;
     rule_type: string;
+    scoring_rule_type: number;
     number_of_players: number;
     first_round_weeks: number;
   },
@@ -91,6 +92,7 @@ export function updateAdminLeague(
     league_id: string;
     name?: string;
     rule_type?: string;
+    scoring_rule_type?: number;
     active?: number;
     number_of_players?: number;
     first_round_weeks?: number;

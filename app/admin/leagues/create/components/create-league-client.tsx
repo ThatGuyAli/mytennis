@@ -41,6 +41,7 @@ export function CreateLeagueClient() {
       const payload = await createAdminLeague({
         name: (formData.get("name") as string | null) ?? "",
         rule_type: (formData.get("rule_type") as string | null) ?? "",
+        scoring_rule_type: Number((formData.get("scoring_rule_type") as string | null) ?? "1"),
         number_of_players: Number((formData.get("number_of_players") as string | null) ?? "0"),
         first_round_weeks: Number((formData.get("first_round_weeks") as string | null) ?? "0"),
       });
@@ -117,6 +118,18 @@ export function CreateLeagueClient() {
         >
           <option value="three_sets">Three Sets</option>
           <option value="two_sets_tiebreak">Two Sets + Tiebreak</option>
+        </select>
+        <select
+          name="scoring_rule_type"
+          required
+          defaultValue="1"
+          className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+        >
+          <option value="1">Scoring Rule 1 - Simple (3/0, draw 1)</option>
+          <option value="2">Scoring Rule 2 - Weighted Tie-break</option>
+          <option value="3">Scoring Rule 3 (Reserved)</option>
+          <option value="4">Scoring Rule 4 (Reserved)</option>
+          <option value="5">Scoring Rule 5 (Reserved)</option>
         </select>
         <input
           name="number_of_players"

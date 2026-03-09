@@ -7,10 +7,12 @@ import type { LeagueRule } from "@/types";
 import { badRequestResponse, getApiSession, unauthorizedResponse } from "../utils";
 
 const VALID_RULE_TYPES: LeagueRule[] = ["three_sets", "two_sets_tiebreak"];
+const VALID_SCORING_RULE_TYPES = [1, 2, 3, 4, 5] as const;
 
 type CreateLeagueBody = {
   name?: string;
   rule_type?: LeagueRule;
+  scoring_rule_type?: number;
   number_of_players?: number;
   first_round_weeks?: number;
 };
@@ -19,6 +21,7 @@ type UpdateLeagueBody = {
   league_id?: string;
   name?: string;
   rule_type?: LeagueRule;
+  scoring_rule_type?: number;
   active?: number | boolean;
   number_of_players?: number;
   first_round_weeks?: number;
@@ -34,11 +37,12 @@ export async function GET(request: NextRequest) {
     id: string;
     name: string;
     rule_type: LeagueRule;
+    scoring_rule_type: number;
     active: number;
     number_of_players: number;
     first_round_weeks: number;
   }>(
-    `SELECT id, name, rule_type, active, number_of_players, first_round_weeks
+    `SELECT id, name, rule_type, scoring_rule_type, active, number_of_players, first_round_weeks
      FROM leagues
      WHERE deleted_at IS NULL
        AND active = 1
@@ -67,6 +71,7 @@ export async function POST(request: NextRequest) {
 
   const name = toTitleCaseWords(body?.name ?? "");
   const ruleType = body?.rule_type;
+  const scoringRuleType = Number(body?.scoring_rule_type ?? 1);
   const numberOfPlayers = Number(body?.number_of_players);
   const firstRoundWeeks = Number(body?.first_round_weeks);
 
@@ -76,6 +81,9 @@ export async function POST(request: NextRequest) {
 
   if (!ruleType || !VALID_RULE_TYPES.includes(ruleType)) {
     return badRequestResponse("Invalid league rule type.");
+  }
+  if (!VALID_SCORING_RULE_TYPES.includes(scoringRuleType as (typeof VALID_SCORING_RULE_TYPES)[number])) {
+    return badRequestResponse("Invalid scoring_rule_type. Allowed values are 1, 2, 3, 4, 5.");
   }
 
   if (!Number.isInteger(numberOfPlayers) || numberOfPlayers < 2) {
@@ -90,14 +98,15 @@ export async function POST(request: NextRequest) {
     `INSERT INTO leagues (
       name,
       rule_type,
+      scoring_rule_type,
       active,
       number_of_players,
       first_round_weeks,
       created_by
     )
-     VALUES ($1, $2, 1, $3, $4, $5)
+     VALUES ($1, $2, $3, 1, $4, $5, $6)
      RETURNING id, name`,
-    [name, ruleType, numberOfPlayers, firstRoundWeeks, session.userId],
+    [name, ruleType, scoringRuleType, numberOfPlayers, firstRoundWeeks, session.userId],
   );
 
   return NextResponse.json(
@@ -132,11 +141,19 @@ export async function PATCH(request: NextRequest) {
 
   const hasName = typeof body?.name === "string";
   const hasRuleType = typeof body?.rule_type === "string";
+  const hasScoringRuleType = typeof body?.scoring_rule_type !== "undefined";
   const hasActive = typeof body?.active !== "undefined";
   const hasNumberOfPlayers = typeof body?.number_of_players !== "undefined";
   const hasFirstRoundWeeks = typeof body?.first_round_weeks !== "undefined";
 
-  if (!hasName && !hasRuleType && !hasActive && !hasNumberOfPlayers && !hasFirstRoundWeeks) {
+  if (
+    !hasName &&
+    !hasRuleType &&
+    !hasScoringRuleType &&
+    !hasActive &&
+    !hasNumberOfPlayers &&
+    !hasFirstRoundWeeks
+  ) {
     return badRequestResponse("At least one field is required to update.");
   }
 
@@ -148,6 +165,15 @@ export async function PATCH(request: NextRequest) {
   const ruleType = hasRuleType ? body?.rule_type : null;
   if (hasRuleType && (!ruleType || !VALID_RULE_TYPES.includes(ruleType))) {
     return badRequestResponse("Invalid league rule type.");
+  }
+  const scoringRuleType = hasScoringRuleType ? Number(body?.scoring_rule_type) : null;
+  if (
+    hasScoringRuleType &&
+    !VALID_SCORING_RULE_TYPES.includes(
+      scoringRuleType as (typeof VALID_SCORING_RULE_TYPES)[number],
+    )
+  ) {
+    return badRequestResponse("Invalid scoring_rule_type. Allowed values are 1, 2, 3, 4, 5.");
   }
 
   const normalizedActive = hasActive ? Number(body?.active) : null;
@@ -207,6 +233,7 @@ export async function PATCH(request: NextRequest) {
     id: string;
     name: string;
     rule_type: LeagueRule;
+    scoring_rule_type: number;
     active: number;
     number_of_players: number;
     first_round_weeks: number;
@@ -215,18 +242,20 @@ export async function PATCH(request: NextRequest) {
      SET
        name = COALESCE($2, name),
        rule_type = COALESCE($3, rule_type),
-       active = COALESCE($4, active),
-       number_of_players = COALESCE($5, number_of_players),
-       first_round_weeks = COALESCE($6, first_round_weeks),
+       scoring_rule_type = COALESCE($4, scoring_rule_type),
+       active = COALESCE($5, active),
+       number_of_players = COALESCE($6, number_of_players),
+       first_round_weeks = COALESCE($7, first_round_weeks),
        updated_at = now(),
-       updated_by = $7
+       updated_by = $8
      WHERE id = $1
        AND deleted_at IS NULL
-     RETURNING id, name, rule_type, active, number_of_players, first_round_weeks`,
+     RETURNING id, name, rule_type, scoring_rule_type, active, number_of_players, first_round_weeks`,
     [
       leagueId,
       normalizedName,
       ruleType,
+      scoringRuleType,
       normalizedActive,
       numberOfPlayers,
       firstRoundWeeks,

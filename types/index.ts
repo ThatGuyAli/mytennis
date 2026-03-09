@@ -61,6 +61,7 @@ export type League = {
   id: string
   name: string
   rule_type: LeagueRule
+  scoring_rule_type: number
   active: number
   number_of_players: number
   first_round_weeks: number
@@ -69,6 +70,7 @@ export type League = {
 export type CreateLeagueInput = {
   name: string
   rule_type: LeagueRule
+  scoring_rule_type: number
   number_of_players: number
   first_round_weeks: number
 }
@@ -76,6 +78,7 @@ export type CreateLeagueInput = {
 export type UpdateLeagueInput = {
   name?: string
   rule_type?: LeagueRule
+  scoring_rule_type?: number
   active?: number
   number_of_players?: number
   first_round_weeks?: number

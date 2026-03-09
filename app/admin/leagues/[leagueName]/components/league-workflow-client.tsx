@@ -92,6 +92,7 @@ type LeagueDetails = {
 type LeagueUpdateFormState = {
   name: string;
   rule_type: LeagueRule;
+  scoring_rule_type: string;
   number_of_players: string;
   first_round_weeks: string;
 };
@@ -128,6 +129,14 @@ const RULE_LABELS: Record<LeagueRule, string> = {
   two_sets_tiebreak: "Two Sets + Tiebreak",
 };
 
+const SCORING_RULE_LABELS: Record<number, string> = {
+  1: "Rule 1 - Simple (3/0, draw 1)",
+  2: "Rule 2 - Weighted Tie-break",
+  3: "Rule 3 (Reserved)",
+  4: "Rule 4 (Reserved)",
+  5: "Rule 5 (Reserved)",
+};
+
 export function LeagueWorkflowClient() {
   const router = useRouter();
   const params = useParams<{ leagueName: string }>();
@@ -159,6 +168,7 @@ export function LeagueWorkflowClient() {
   const [leagueForm, setLeagueForm] = useState<LeagueUpdateFormState>({
     name: "",
     rule_type: "three_sets",
+    scoring_rule_type: "1",
     number_of_players: "",
     first_round_weeks: "",
   });
@@ -301,6 +311,7 @@ export function LeagueWorkflowClient() {
     setLeagueForm({
       name: details.league.name,
       rule_type: details.league.rule_type,
+      scoring_rule_type: String(details.league.scoring_rule_type ?? 1),
       number_of_players: String(details.league.number_of_players),
       first_round_weeks: String(details.league.first_round_weeks),
     });
@@ -442,6 +453,7 @@ export function LeagueWorkflowClient() {
         league_id: leagueId,
         name: leagueForm.name,
         rule_type: leagueForm.rule_type,
+        scoring_rule_type: Number(leagueForm.scoring_rule_type),
         number_of_players: Number(leagueForm.number_of_players),
         first_round_weeks: Number(leagueForm.first_round_weeks),
       });
@@ -846,6 +858,7 @@ export function LeagueWorkflowClient() {
                       setLeagueForm({
                         name: details.league.name,
                         rule_type: details.league.rule_type,
+                        scoring_rule_type: String(details.league.scoring_rule_type ?? 1),
                         number_of_players: String(details.league.number_of_players),
                         first_round_weeks: String(details.league.first_round_weeks),
                       });
@@ -926,6 +939,34 @@ export function LeagueWorkflowClient() {
                         </select>
                       ) : (
                         <span>{RULE_LABELS[details.league.rule_type]}</span>
+                      )}
+                    </td>
+                  </tr>
+                  <tr className="border-b border-zinc-200 dark:border-zinc-800">
+                    <th className="w-48 px-3 py-2 text-left font-medium">Scoring Rule</th>
+                    <td className="px-3 py-2">
+                      {isEditingLeague ? (
+                        <select
+                          value={leagueForm.scoring_rule_type}
+                          onChange={(event) =>
+                            setLeagueForm((prev) => ({
+                              ...prev,
+                              scoring_rule_type: event.target.value,
+                            }))
+                          }
+                          className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                        >
+                          <option value="1">{SCORING_RULE_LABELS[1]}</option>
+                          <option value="2">{SCORING_RULE_LABELS[2]}</option>
+                          <option value="3">{SCORING_RULE_LABELS[3]}</option>
+                          <option value="4">{SCORING_RULE_LABELS[4]}</option>
+                          <option value="5">{SCORING_RULE_LABELS[5]}</option>
+                        </select>
+                      ) : (
+                        <span>
+                          {SCORING_RULE_LABELS[details.league.scoring_rule_type] ??
+                            `Rule ${details.league.scoring_rule_type}`}
+                        </span>
                       )}
                     </td>
                   </tr>
