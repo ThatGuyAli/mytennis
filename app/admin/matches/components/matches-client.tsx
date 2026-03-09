@@ -3,6 +3,7 @@
 import { DragEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { createAdminMatches, getAdminDashboard } from "@/lib/api";
 import type { League, MatchStatus, Player } from "@/types";
 
@@ -387,11 +388,11 @@ export function MatchesClient() {
 
           {selectedBuilderLeague ? (
             <>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <select
                   value={builderWeekNumber}
                   onChange={(event) => setBuilderWeekNumber(Number(event.target.value))}
-                  className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                  className="min-w-0 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
                 >
                   {Array.from({ length: builderMaxWeek }, (_, index) => {
                     const week = index + 1;
@@ -412,7 +413,7 @@ export function MatchesClient() {
                     }))
                   }
                   type="date"
-                  className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                  className="min-w-0 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
                 />
               </div>
 
@@ -525,7 +526,14 @@ export function MatchesClient() {
               disabled={busy}
               className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:hover:bg-zinc-900"
             >
-              Save All Weeks to DB
+              {busy ? (
+                <span className="inline-flex items-center gap-2">
+                  <LoadingSpinner />
+                  Saving...
+                </span>
+              ) : (
+                "Save All Weeks to DB"
+              )}
             </button>
           </div>
         </div>

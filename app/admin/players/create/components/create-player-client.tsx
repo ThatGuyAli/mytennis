@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createAdminPlayer } from "@/lib/api";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 type NoticeType = "success" | "error";
 type Notice = {
@@ -104,7 +105,14 @@ export function CreatePlayerClient() {
             disabled={isSubmitting}
             className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
           >
-            {isSubmitting ? "Saving..." : "Save Player"}
+            {isSubmitting ? (
+              <span className="inline-flex items-center gap-2">
+                <LoadingSpinner />
+                Saving...
+              </span>
+            ) : (
+              "Save Player"
+            )}
           </button>
         </form>
       </section>

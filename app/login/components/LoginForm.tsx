@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { loginAdmin } from "@/lib/api";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 
 type NoticeType = "success" | "error";
 
@@ -96,7 +97,14 @@ export function LoginForm() {
           disabled={isSubmitting}
           className="w-full rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
         >
-          {isSubmitting ? "Logging in..." : "Login"}
+          {isSubmitting ? (
+            <span className="inline-flex items-center gap-2">
+              <LoadingSpinner />
+              Logging in...
+            </span>
+          ) : (
+            "Login"
+          )}
         </button>
       </form>
     </>

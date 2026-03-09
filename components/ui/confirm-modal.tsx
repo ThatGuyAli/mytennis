@@ -1,5 +1,7 @@
 "use client";
 
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+
 type ConfirmModalProps = {
   isOpen: boolean;
   title: string;
@@ -59,7 +61,14 @@ export function ConfirmModal({
             disabled={isConfirming}
             className="rounded-md border border-red-300 bg-red-600 px-4 py-2 text-sm text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-800"
           >
-            {isConfirming ? "Deleting..." : confirmLabel}
+            {isConfirming ? (
+              <span className="inline-flex items-center gap-2">
+                <LoadingSpinner />
+                Processing...
+              </span>
+            ) : (
+              confirmLabel
+            )}
           </button>
         </div>
       </div>

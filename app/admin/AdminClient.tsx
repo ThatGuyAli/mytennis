@@ -4,6 +4,7 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ApiError, getAdminDashboard, logoutAdmin, upsertAdminSet } from "@/lib/api";
 import type { League, MatchStatus, Player } from "@/types";
 
@@ -333,7 +334,14 @@ export function AdminClient() {
             onClick={() => void onLogout()}
             className="rounded-md border border-zinc-300 px-3 py-2 text-sm hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:hover:bg-zinc-900"
           >
-            Logout
+            {busy ? (
+              <span className="inline-flex items-center gap-2">
+                <LoadingSpinner />
+                Logging out...
+              </span>
+            ) : (
+              "Logout"
+            )}
           </button>
         </div>
       </header>
@@ -514,7 +522,14 @@ export function AdminClient() {
                                       onClick={() => void saveInlineResult(match.id)}
                                       className="rounded-md bg-zinc-900 px-2 py-0.5 text-[11px] font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 sm:px-3 sm:py-1 sm:text-xs dark:bg-zinc-100 dark:text-zinc-900"
                                     >
-                                      Save
+                                      {busy ? (
+                                        <span className="inline-flex items-center gap-2">
+                                          <LoadingSpinner />
+                                          Saving...
+                                        </span>
+                                      ) : (
+                                        "Save"
+                                      )}
                                     </button>
                                     <button
                                       type="button"

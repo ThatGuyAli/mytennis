@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { ConfirmModal } from "@/components/ui/confirm-modal";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
   createAdminPlayer,
   deleteAdminPlayer,
@@ -242,7 +243,14 @@ export function PlayersClient() {
             disabled={isCreatingPlayer}
             className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
           >
-            {isCreatingPlayer ? "Saving..." : "Save Player"}
+            {isCreatingPlayer ? (
+              <span className="inline-flex items-center gap-2">
+                <LoadingSpinner />
+                Saving...
+              </span>
+            ) : (
+              "Save Player"
+            )}
           </button>
         </form>
       </section>
@@ -301,7 +309,14 @@ export function PlayersClient() {
                         disabled={deletingPlayerId === player.id}
                         className="rounded-md border border-red-300 px-3 py-1 text-xs text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-800 dark:text-red-200 dark:hover:bg-red-950/40"
                       >
-                        {deletingPlayerId === player.id ? "Deleting..." : "Delete"}
+                        {deletingPlayerId === player.id ? (
+                          <span className="inline-flex items-center gap-2">
+                            <LoadingSpinner />
+                            Deleting...
+                          </span>
+                        ) : (
+                          "Delete"
+                        )}
                       </button>
                     </td>
                   </tr>
@@ -359,7 +374,14 @@ export function PlayersClient() {
                         disabled={deletingPlayerId === player.id}
                         className="rounded-md border border-red-300 px-3 py-1 text-xs text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-red-800 dark:text-red-200 dark:hover:bg-red-950/40"
                       >
-                        {deletingPlayerId === player.id ? "Deleting..." : "Delete"}
+                        {deletingPlayerId === player.id ? (
+                          <span className="inline-flex items-center gap-2">
+                            <LoadingSpinner />
+                            Deleting...
+                          </span>
+                        ) : (
+                          "Delete"
+                        )}
                       </button>
                     </td>
                   </tr>
