@@ -126,7 +126,7 @@ export function getAdminPlayersPaged<T>(page: number, pageSize: number) {
 }
 
 export function createAdminPlayer(name: string) {
-  return requestData<{ created: boolean; message?: string }>(
+  return requestData<{ created: boolean; message?: string; player?: { id: string; name: string } }>(
     "/api/admin/players",
     jsonRequestInit("POST", { name }),
   );

@@ -130,12 +130,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Player name already exists." }, { status: 409 });
   }
 
+  let createdPlayer: { id: string; name: string } | null = null;
   try {
-    await query(
+    const inserted = await query<{ id: string; name: string }>(
       `INSERT INTO players (name, created_by)
-       VALUES ($1, $2)`,
+       VALUES ($1, $2)
+       RETURNING id, name`,
       [name, session.userId],
     );
+    createdPlayer = inserted.rows[0] ?? null;
   } catch (errorObject) {
     const dbCode =
       typeof errorObject === "object" && errorObject && "code" in errorObject
@@ -147,7 +150,16 @@ export async function POST(request: NextRequest) {
     throw errorObject;
   }
 
-  return NextResponse.json({ data: { created: true } }, { status: 201 });
+  return NextResponse.json(
+    {
+      data: {
+        created: true,
+        player: createdPlayer,
+        message: "Player created successfully.",
+      },
+    },
+    { status: 201 },
+  );
 }
 
 export async function DELETE(request: NextRequest) {

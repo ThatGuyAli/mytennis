@@ -8,6 +8,7 @@ import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
   attachPlayerToLeague,
+  createAdminPlayer,
   createAdminMatches,
   getAdminDashboard,
   getAdminLeagueDetails,
@@ -138,6 +139,8 @@ const SCORING_RULE_LABELS: Record<number, string> = {
   5: "Rule 5 (Reserved)",
 };
 
+const CREATE_NEW_PLAYER_OPTION = "__create_new_player__";
+
 export function LeagueWorkflowClient() {
   const router = useRouter();
   const params = useParams<{ leagueName: string }>();
@@ -159,6 +162,8 @@ export function LeagueWorkflowClient() {
   const [removingPlayerId, setRemovingPlayerId] = useState<string>("");
   const [pendingFinishLeague, setPendingFinishLeague] = useState(false);
   const [isFinishingLeague, setIsFinishingLeague] = useState(false);
+  const [attachPlayerId, setAttachPlayerId] = useState("");
+  const [newAttachPlayerName, setNewAttachPlayerName] = useState("");
   const [isEditingLeague, setIsEditingLeague] = useState(false);
   const [isUpdatingLeague, setIsUpdatingLeague] = useState(false);
   const [editingWeekNumber, setEditingWeekNumber] = useState<number | null>(null);
@@ -393,7 +398,7 @@ export function LeagueWorkflowClient() {
     setNotice({ type: "error", message: "No empty slot is available for this player." });
   }
 
-  async function onAttachPlayerSubmit(formData: FormData) {
+  async function onAttachPlayerSubmit() {
     if (!leagueId) return;
     if (!hasEmptySeat) {
       setNotice({
@@ -403,13 +408,41 @@ export function LeagueWorkflowClient() {
       });
       return;
     }
+    if (!attachPlayerId) {
+      setNotice({ type: "error", message: "Please select a player to attach." });
+      return;
+    }
 
     setBusy(true);
     setNotice(null);
     try {
-      await attachPlayerToLeague(leagueId, (formData.get("player_id") as string | null) ?? "");
+      let playerIdToAttach = attachPlayerId;
+      let createdNewPlayer = false;
+
+      if (attachPlayerId === CREATE_NEW_PLAYER_OPTION) {
+        const playerName = newAttachPlayerName.trim();
+        if (!playerName) {
+          setNotice({ type: "error", message: "Please enter the new player name." });
+          return;
+        }
+        const created = await createAdminPlayer(playerName);
+        if (!created.player?.id) {
+          throw new Error("Player created but ID is missing. Please refresh and try again.");
+        }
+        playerIdToAttach = created.player.id;
+        createdNewPlayer = true;
+      }
+
+      await attachPlayerToLeague(leagueId, playerIdToAttach);
       await refreshAll();
-      setNotice({ type: "success", message: "Player attached successfully." });
+      setAttachPlayerId("");
+      setNewAttachPlayerName("");
+      setNotice({
+        type: "success",
+        message: createdNewPlayer
+          ? "Player created and attached successfully."
+          : "Player attached successfully.",
+      });
     } catch (errorObject) {
       setNotice({
         type: "error",
@@ -1041,14 +1074,13 @@ export function LeagueWorkflowClient() {
             <form
               onSubmit={(event) => {
                 event.preventDefault();
-                const formData = new FormData(event.currentTarget);
-                void onAttachPlayerSubmit(formData);
-                event.currentTarget.reset();
+                void onAttachPlayerSubmit();
               }}
               className="flex flex-wrap items-center gap-2"
             >
               <select
-                name="player_id"
+                value={attachPlayerId}
+                onChange={(event) => setAttachPlayerId(event.target.value)}
                 required
                 className="min-w-[220px] rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
               >
@@ -1058,7 +1090,17 @@ export function LeagueWorkflowClient() {
                     {player.name}
                   </option>
                 ))}
+                <option value={CREATE_NEW_PLAYER_OPTION}>+ Create new player</option>
               </select>
+              {attachPlayerId === CREATE_NEW_PLAYER_OPTION ? (
+                <input
+                  value={newAttachPlayerName}
+                  onChange={(event) => setNewAttachPlayerName(event.target.value)}
+                  placeholder="New player full name"
+                  required
+                  className="min-w-[220px] rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+                />
+              ) : null}
               <button
                 type="submit"
                 disabled={busy}
@@ -1067,10 +1109,12 @@ export function LeagueWorkflowClient() {
                 {busy ? (
                   <span className="inline-flex items-center gap-2">
                     <LoadingSpinner />
-                    Attaching...
+                    {attachPlayerId === CREATE_NEW_PLAYER_OPTION
+                      ? "Creating..."
+                      : "Attaching..."}
                   </span>
                 ) : (
-                  "Attach"
+                  attachPlayerId === CREATE_NEW_PLAYER_OPTION ? "Create" : "Attach"
                 )}
               </button>
             </form>
