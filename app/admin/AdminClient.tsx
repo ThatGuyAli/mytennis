@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ApiError, getAdminDashboard, logoutAdmin, upsertAdminSet } from "@/lib/api";
+import { APP_COLORS } from "@/lib/theme-colors";
 import type { League, MatchStatus, Player } from "@/types";
 
 type LeagueAssignment = {
@@ -286,24 +287,54 @@ export function AdminClient() {
 
   if (loading) {
     return (
-      <main className="mx-auto max-w-6xl space-y-8 px-6 py-8">
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">Loading dashboard...</p>
+      <main
+        className="relative min-h-screen overflow-hidden px-6 py-10"
+        style={{
+          background: `linear-gradient(135deg, ${APP_COLORS.login.backgroundFrom} 0%, ${APP_COLORS.login.backgroundTo} 100%)`,
+        }}
+      >
+        <section className="relative mx-auto max-w-6xl space-y-8 py-8">
+          <p className="text-sm" style={{ color: APP_COLORS.login.subtitle }}>
+            Loading dashboard...
+          </p>
+        </section>
       </main>
     );
   }
 
   if (!dashboard) {
     return (
-      <main className="mx-auto max-w-6xl space-y-8 px-6 py-8">
-        <p className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
-          {error || "Unable to load dashboard."}
-        </p>
+      <main
+        className="relative min-h-screen overflow-hidden px-6 py-10"
+        style={{
+          background: `linear-gradient(135deg, ${APP_COLORS.login.backgroundFrom} 0%, ${APP_COLORS.login.backgroundTo} 100%)`,
+        }}
+      >
+        <section className="relative mx-auto max-w-6xl space-y-8 py-8">
+          <p className="rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700">
+            {error || "Unable to load dashboard."}
+          </p>
+        </section>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto max-w-6xl space-y-8 px-6 py-8">
+    <main
+      className="relative min-h-screen overflow-hidden px-6 py-10"
+      style={{
+        background: `linear-gradient(135deg, ${APP_COLORS.login.backgroundFrom} 0%, ${APP_COLORS.login.backgroundTo} 100%)`,
+      }}
+    >
+      <div
+        className="pointer-events-none absolute -left-20 -top-24 h-64 w-64 rounded-full blur-3xl"
+        style={{ backgroundColor: `${APP_COLORS.brand.primary}33` }}
+      />
+      <div
+        className="pointer-events-none absolute -bottom-24 -right-20 h-72 w-72 rounded-full blur-3xl"
+        style={{ backgroundColor: `${APP_COLORS.brand.secondary}33` }}
+      />
+      <section className="relative mx-auto max-w-6xl space-y-8 py-8">
       {notice ? (
         <div className="pointer-events-none fixed left-1/2 top-4 z-50 -translate-x-1/2">
           <div
@@ -325,14 +356,17 @@ export function AdminClient() {
 
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Admin Dashboard</h1>
+          <h1 className="text-2xl font-semibold" style={{ color: APP_COLORS.login.title }}>
+            Admin Dashboard
+          </h1>
         </div>
         <div className="flex items-center gap-2">
           <button
             type="button"
             disabled={busy}
             onClick={() => void onLogout()}
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            className="rounded-lg px-3 py-2 text-sm font-semibold shadow-md transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+            style={{ backgroundColor: APP_COLORS.brand.primary, color: APP_COLORS.login.ctaText }}
           >
             {busy ? (
               <span className="inline-flex items-center gap-2">
@@ -346,64 +380,100 @@ export function AdminClient() {
         </div>
       </header>
 
-      <section className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+      <section
+        className="rounded-2xl border p-4 shadow-xl"
+        style={{
+          backgroundColor: APP_COLORS.login.panelBackground,
+          borderColor: APP_COLORS.login.panelBorder,
+          boxShadow: `0 24px 56px ${APP_COLORS.login.panelShadow}`,
+        }}
+      >
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold">League Section</h2>
+          <h2 className="text-lg font-semibold" style={{ color: APP_COLORS.login.title }}>
+            League Section
+          </h2>
         </div>
-        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="mt-2 text-sm" style={{ color: APP_COLORS.login.subtitle }}>
           View league details or create a new league.
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <Link
             href="/admin/leagues"
-            className="inline-flex rounded-md border border-zinc-300 px-4 py-2 text-sm hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            className="inline-flex rounded-lg border px-4 py-2 text-sm hover:bg-white/70"
+            style={{ borderColor: APP_COLORS.login.panelBorder, color: APP_COLORS.login.subtitle }}
           >
             View League Details
           </Link>
                     <Link
             href="/admin/leagues/create"
-            className="inline-flex rounded-md border border-zinc-300 px-4 py-2 text-sm hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            className="inline-flex rounded-lg px-4 py-2 text-sm font-semibold shadow-md transition hover:brightness-110"
+            style={{ backgroundColor: APP_COLORS.brand.primary, color: APP_COLORS.login.ctaText }}
           >
             Create New League
           </Link>
         </div>
       </section>
 
-      <section className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+      <section
+        className="rounded-2xl border p-4 shadow-xl"
+        style={{
+          backgroundColor: APP_COLORS.login.panelBackground,
+          borderColor: APP_COLORS.login.panelBorder,
+          boxShadow: `0 24px 56px ${APP_COLORS.login.panelShadow}`,
+        }}
+      >
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold">Players Section</h2>
+          <h2 className="text-lg font-semibold" style={{ color: APP_COLORS.login.title }}>
+            Players Section
+          </h2>
 
         </div>
-        <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
+        <p className="mt-2 text-sm" style={{ color: APP_COLORS.login.subtitle }}>
           View players list or add a new player.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Link
             href="/admin/players"
-            className="inline-flex rounded-md border border-zinc-300 px-4 py-2 text-sm hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            className="inline-flex rounded-lg border px-4 py-2 text-sm hover:bg-white/70"
+            style={{ borderColor: APP_COLORS.login.panelBorder, color: APP_COLORS.login.subtitle }}
           >
             View Players
           </Link>
           <Link
             href="/admin/players/create"
-            className="inline-flex rounded-md border border-zinc-300 px-4 py-2 text-sm hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            className="inline-flex rounded-lg px-4 py-2 text-sm font-semibold shadow-md transition hover:brightness-110"
+            style={{ backgroundColor: APP_COLORS.brand.primary, color: APP_COLORS.login.ctaText }}
           >
             Add New Player
           </Link>
         </div>
       </section>
 
-      <section className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
-        <h2 className="text-lg font-semibold">Matches Overview</h2>
+      <section
+        className="rounded-2xl border p-4 shadow-xl"
+        style={{
+          backgroundColor: APP_COLORS.login.panelBackground,
+          borderColor: APP_COLORS.login.panelBorder,
+          boxShadow: `0 24px 56px ${APP_COLORS.login.panelShadow}`,
+        }}
+      >
+        <h2 className="text-lg font-semibold" style={{ color: APP_COLORS.login.title }}>
+          Matches Overview
+        </h2>
         <div className="mt-3 space-y-4">
           {matchesByLeague.map(({ league, matches }) => (
             <div
               key={league.id}
-              className="rounded-md border border-zinc-200 p-3 dark:border-zinc-700"
+              className="rounded-xl border p-3"
+              style={{ borderColor: APP_COLORS.login.panelBorder, backgroundColor: "#ffffffcc" }}
             >
-              <h3 className="text-sm font-semibold">{league.name}</h3>
+              <h3 className="text-sm font-semibold" style={{ color: APP_COLORS.login.title }}>
+                {league.name}
+              </h3>
               {matches.length === 0 ? (
-                <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">No matches yet.</p>
+                <p className="mt-2 text-sm" style={{ color: APP_COLORS.login.subtitle }}>
+                  No matches yet.
+                </p>
               ) : (
                 <div className="mt-2 overflow-x-auto">
                   <table className="min-w-full border-collapse text-xs sm:text-sm">
@@ -564,6 +634,7 @@ export function AdminClient() {
             </div>
           ))}
         </div>
+      </section>
       </section>
     </main>
   );

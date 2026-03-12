@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { getPublicStandingsLeagueDetails, getPublicStandingsLeagues } from "@/lib/api";
 import { buildLeagueStandings, type ComputedStandingRow } from "@/lib/standings";
+import { APP_COLORS } from "@/lib/theme-colors";
 
 type LeagueRow = {
   id: string;
@@ -30,9 +30,9 @@ type Notice = { type: NoticeType; message: string } | null;
 
 function noticeClassName(type: NoticeType) {
   if (type === "error") {
-    return "border-red-300 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200";
+    return "border-red-300 bg-red-50 text-red-800";
   }
-  return "border-zinc-300 bg-zinc-50 text-zinc-800 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200";
+  return "border-zinc-300 bg-zinc-50 text-zinc-800";
 }
 
 export function StandingsClient() {
@@ -136,7 +136,7 @@ export function StandingsClient() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl space-y-6 px-6 py-8">
+    <section className="relative mx-auto max-w-6xl space-y-6 py-8">
       {notice ? (
         <div className="pointer-events-none fixed left-1/2 top-4 z-50 -translate-x-1/2">
           <div
@@ -148,22 +148,28 @@ export function StandingsClient() {
       ) : null}
 
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Standings</h1>
-        <Link
-          href="/admin"
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-        >
-          Dashboard
-        </Link>
+        <h1 className="text-2xl font-semibold" style={{ color: APP_COLORS.login.title }}>
+          League Standings
+        </h1>
       </header>
 
-      <section className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+      <section
+        className="rounded-2xl border p-4 shadow-xl"
+        style={{
+          backgroundColor: APP_COLORS.login.panelBackground,
+          borderColor: APP_COLORS.login.panelBorder,
+          boxShadow: `0 24px 56px ${APP_COLORS.login.panelShadow}`,
+        }}
+      >
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold">League Standings</h2>
+          <h2 className="text-lg font-semibold" style={{ color: APP_COLORS.login.title }}>
+            Select League
+          </h2>
           <button
             type="button"
             onClick={() => setIsExpanded((prev) => !prev)}
-            className="rounded-md border border-zinc-300 px-3 py-1 text-xs hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            className="rounded-lg border px-3 py-1 text-xs hover:bg-white/70"
+            style={{ borderColor: APP_COLORS.login.panelBorder, color: APP_COLORS.login.subtitle }}
           >
             {isExpanded ? "Collapse Columns" : "Expand Columns"}
           </button>
@@ -173,7 +179,8 @@ export function StandingsClient() {
             value={selectedLeagueId}
             onChange={(event) => void onLeagueChange(event.target.value)}
             disabled={loading}
-            className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900"
+            className="w-full rounded-lg border bg-white px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
+            style={{ borderColor: APP_COLORS.login.panelBorder }}
           >
             <option value="">Select the league</option>
             {leagues.map((league) => (
@@ -187,7 +194,7 @@ export function StandingsClient() {
         <div className="mt-4 overflow-x-auto">
           <table className="min-w-full border-collapse text-sm">
             <thead>
-              <tr className="border-b border-zinc-200 dark:border-zinc-700">
+              <tr className="border-b" style={{ borderColor: APP_COLORS.login.panelBorder }}>
                 <th className="px-3 py-2 text-left">
                   <button type="button" onClick={() => onSort("position")} className="hover:underline">
                     {sortLabel("position", "#")}
@@ -242,7 +249,7 @@ export function StandingsClient() {
                     </th>
                   </>
                 ) : null}
-                                <th className="px-3 py-2 text-center">
+                <th className="px-3 py-2 text-center">
                   <button type="button" onClick={() => onSort("points")} className="hover:underline">
                     {sortLabel("points", "Points")}
                   </button>
@@ -252,25 +259,29 @@ export function StandingsClient() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td className="px-3 py-3 text-zinc-600 dark:text-zinc-300" colSpan={isExpanded ? 11 : 5}>
+                  <td className="px-3 py-3" colSpan={isExpanded ? 11 : 5} style={{ color: APP_COLORS.login.subtitle }}>
                     Loading standings...
                   </td>
                 </tr>
               ) : !selectedLeagueId ? (
                 <tr>
-                  <td className="px-3 py-3 text-zinc-600 dark:text-zinc-300" colSpan={isExpanded ? 11 : 5}>
+                  <td className="px-3 py-3" colSpan={isExpanded ? 11 : 5} style={{ color: APP_COLORS.login.subtitle }}>
                     Select a league to view standings.
                   </td>
                 </tr>
               ) : standings.length === 0 ? (
                 <tr>
-                  <td className="px-3 py-3 text-zinc-600 dark:text-zinc-300" colSpan={isExpanded ? 11 : 5}>
+                  <td className="px-3 py-3" colSpan={isExpanded ? 11 : 5} style={{ color: APP_COLORS.login.subtitle }}>
                     No standings yet for {selectedLeagueName || "this league"}.
                   </td>
                 </tr>
               ) : (
-                sortedStandings.map((row) => (
-                  <tr key={row.player_id} className="border-b border-zinc-200 dark:border-zinc-800">
+                sortedStandings.map((row, index) => (
+                  <tr
+                    key={row.player_id}
+                    className={`border-b transition-colors hover:bg-blue-50/80 ${index % 2 === 1 ? "bg-zinc-50/80" : "bg-white"}`}
+                    style={{ borderColor: APP_COLORS.login.panelBorder }}
+                  >
                     <td className="px-3 py-2">{row.position}</td>
                     <td className="px-3 py-2">{row.player_name}</td>
                     <td className="px-3 py-2 text-center">{row.matches_played}</td>
@@ -293,6 +304,6 @@ export function StandingsClient() {
           </table>
         </div>
       </section>
-    </main>
+    </section>
   );
 }

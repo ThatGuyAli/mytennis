@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { loginAdmin } from "@/lib/api";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { APP_COLORS } from "@/lib/theme-colors";
 
 type NoticeType = "success" | "error";
 
@@ -67,7 +68,7 @@ export function LoginForm() {
 
       <form onSubmit={onSubmit} className="mt-6 space-y-4">
         <div>
-          <label className="mb-1 block text-sm font-medium" htmlFor="username">
+          <label className="mb-1 block text-sm font-medium text-zinc-700" htmlFor="username">
             Username
           </label>
           <input
@@ -76,11 +77,12 @@ export function LoginForm() {
             type="text"
             autoComplete="username"
             required
-            className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none ring-0 focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900"
+            className="w-full rounded-lg border bg-white px-3 py-2.5 text-base text-zinc-900 outline-none ring-0 transition focus:ring-2 focus:ring-blue-200"
+            style={{ borderColor: APP_COLORS.login.panelBorder }}
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium" htmlFor="password">
+          <label className="mb-1 block text-sm font-medium text-zinc-700" htmlFor="password">
             Password
           </label>
           <input
@@ -89,13 +91,15 @@ export function LoginForm() {
             type="password"
             autoComplete="current-password"
             required
-            className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm outline-none ring-0 focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900"
+            className="w-full rounded-lg border bg-white px-3 py-2.5 text-base text-zinc-900 outline-none ring-0 transition focus:ring-2 focus:ring-blue-200"
+            style={{ borderColor: APP_COLORS.login.panelBorder }}
           />
         </div>
         <button
           type="submit"
           disabled={isSubmitting}
-          className="w-full rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+          className="w-full rounded-lg px-4 py-2.5 text-sm font-semibold shadow-md transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+          style={{ backgroundColor: APP_COLORS.brand.primary, color: APP_COLORS.login.ctaText }}
         >
           {isSubmitting ? (
             <span className="inline-flex items-center gap-2">
