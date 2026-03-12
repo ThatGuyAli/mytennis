@@ -72,6 +72,17 @@ export function getAdminLeagueDetails<T>(leagueId: string) {
   });
 }
 
+export function getPublicStandingsLeagues<T>() {
+  return requestData<T>("/api/standings/leagues", { method: "GET", cache: "no-store" });
+}
+
+export function getPublicStandingsLeagueDetails<T>(leagueId: string) {
+  return requestData<T>(`/api/standings/league-details?league_id=${leagueId}`, {
+    method: "GET",
+    cache: "no-store",
+  });
+}
+
 export function createAdminLeague(
   body: {
     name: string;

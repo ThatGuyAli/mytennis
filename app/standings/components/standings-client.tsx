@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
-import { getAdminLeagueDetails, getAdminLeagues } from "@/lib/api";
+import { getPublicStandingsLeagueDetails, getPublicStandingsLeagues } from "@/lib/api";
 import { buildLeagueStandings, type ComputedStandingRow } from "@/lib/standings";
 
 type LeagueRow = {
@@ -84,7 +84,7 @@ export function StandingsClient() {
   }
 
   async function loadLeagues() {
-    const data = await getAdminLeagues<{ leagues: LeagueRow[] }>();
+    const data = await getPublicStandingsLeagues<{ leagues: LeagueRow[] }>();
     setLeagues(data.leagues);
   }
 
@@ -94,7 +94,7 @@ export function StandingsClient() {
       return;
     }
 
-    const details = await getAdminLeagueDetails<LeagueDetailsPayload>(leagueId);
+    const details = await getPublicStandingsLeagueDetails<LeagueDetailsPayload>(leagueId);
     const table = buildLeagueStandings(
       details.players,
       details.matches,
