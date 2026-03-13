@@ -97,13 +97,6 @@ export function StandingsClient() {
     return `${label} ${sortDirection === "asc" ? "▲" : "▼"}`;
   }
 
-  function getPlayerStatus(row: ComputedStandingRow, position: number, totalPlayers: number) {
-    if (row.matches_played === 0) return "No Match";
-    if (position === 1) return "Leader";
-    if (position <= Math.ceil(totalPlayers / 2)) return "Top Half";
-    return "Bottom Half";
-  }
-
   async function loadLeagues() {
     const data = await getPublicStandingsLeagues<{ leagues: LeagueRow[] }>();
     setLeagues(data.leagues);
@@ -280,34 +273,32 @@ export function StandingsClient() {
               <tr className="border-b" style={{ borderColor: APP_COLORS.login.panelBorder }}>
                 <th className="px-3 py-2 text-left">
                   <button type="button" onClick={() => onSort("position")} className="hover:underline">
-                    {sortLabel("position", "Ranking")}
+                    {sortLabel("position", "RK")}
                   </button>
                 </th>
                 <th className="px-3 py-2 text-left">
                   <button type="button" onClick={() => onSort("player_name")} className="hover:underline">
-                    {sortLabel("player_name", "Player")}
+                    {sortLabel("player_name", "PL")}
                   </button>
                 </th>
                 {isExpanded ? (
                   <th className="px-3 py-2 text-center">
                     <button type="button" onClick={() => onSort("points")} className="hover:underline">
-                      {sortLabel("points", "Points")}
+                      {sortLabel("points", "PTS")}
                     </button>
                   </th>
                 ) : null}
                 <th className="px-3 py-2 text-center">
                   <button type="button" onClick={() => onSort("matches_played")} className="hover:underline">
-                    {sortLabel("matches_played", "Matches Played")}
+                    {sortLabel("matches_played", "MP")}
                   </button>
                 </th>
                 {isExpanded ? (
                   <>
-                    <th className="px-3 py-2 text-center">
-                      Matches W-L-D
-                    </th>
+                    <th className="px-3 py-2 text-center">M W-L-D</th>
                     <th className="px-3 py-2 text-center">
                       <button type="button" onClick={() => onSort("sets_won")} className="hover:underline">
-                        Sets Won/Lost
+                        S W/L
                       </button>
                     </th>
                     <th className="px-3 py-2 text-center">
@@ -316,7 +307,7 @@ export function StandingsClient() {
                         onClick={() => onSort("set_win_loss_percentage")}
                         className="hover:underline"
                       >
-                        {sortLabel("set_win_loss_percentage", "Sets W/L %")}
+                        {sortLabel("set_win_loss_percentage", "S%")}
                       </button>
                     </th>
                     <th className="px-3 py-2 text-center">
@@ -325,16 +316,15 @@ export function StandingsClient() {
                         onClick={() => onSort("game_win_loss_percentage")}
                         className="hover:underline"
                       >
-                        {sortLabel("game_win_loss_percentage", "Game W/L %")}
+                        {sortLabel("game_win_loss_percentage", "G%")}
                       </button>
                     </th>
-                    <th className="px-3 py-2 text-center">Status</th>
                   </>
                 ) : null}
                 {!isExpanded ? (
                   <th className="px-3 py-2 text-center">
                     <button type="button" onClick={() => onSort("points")} className="hover:underline">
-                      {sortLabel("points", "Points")}
+                      {sortLabel("points", "PTS")}
                     </button>
                   </th>
                 ) : null}
@@ -343,19 +333,19 @@ export function StandingsClient() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td className="px-3 py-3" colSpan={isExpanded ? 9 : 4} style={{ color: APP_COLORS.login.subtitle }}>
+                  <td className="px-3 py-3" colSpan={isExpanded ? 8 : 4} style={{ color: APP_COLORS.login.subtitle }}>
                     Loading standings...
                   </td>
                 </tr>
               ) : !selectedLeagueId ? (
                 <tr>
-                  <td className="px-3 py-3" colSpan={isExpanded ? 9 : 4} style={{ color: APP_COLORS.login.subtitle }}>
+                  <td className="px-3 py-3" colSpan={isExpanded ? 8 : 4} style={{ color: APP_COLORS.login.subtitle }}>
                     Select a league to view standings.
                   </td>
                 </tr>
               ) : standings.length === 0 ? (
                 <tr>
-                  <td className="px-3 py-3" colSpan={isExpanded ? 9 : 4} style={{ color: APP_COLORS.login.subtitle }}>
+                  <td className="px-3 py-3" colSpan={isExpanded ? 8 : 4} style={{ color: APP_COLORS.login.subtitle }}>
                     No standings yet for {selectedLeagueName || "this league"}.
                   </td>
                 </tr>
@@ -380,9 +370,6 @@ export function StandingsClient() {
                         </td>
                         <td className="px-3 py-2 text-center">{row.set_win_loss_percentage}%</td>
                         <td className="px-3 py-2 text-center">{row.game_win_loss_percentage}%</td>
-                        <td className="px-3 py-2 text-center">
-                          {getPlayerStatus(row, index + 1, sortedStandings.length)}
-                        </td>
                       </>
                     ) : null}
                     {!isExpanded ? <td className="px-3 py-2 text-center font-medium">{row.points}</td> : null}
@@ -400,12 +387,15 @@ export function StandingsClient() {
             backgroundColor: "#ffffffcc",
           }}
         >
-          <p>
-            <strong>Column guide:</strong> Ranking = Position, Matches Played = Total matches,
-            Matches W-L-D = Won-Lost-Drawn, Sets Won/Lost = Total sets won/lost, Sets W/L % =
-            Sets won percentage, Game W/L % = Games won percentage, Status = Current standing
-            label, Points = Total points.
-          </p>
+          <p className="font-semibold">Column guide:</p>
+          <p>RK = Ranking</p>
+          <p>PL = Player</p>
+          <p>MP = Matches Played</p>
+          <p>PTS = Points</p>
+          <p>M W-L-D = Match record (Won-Lost-Drawn)</p>
+          <p>S W/L = Sets Won/Lost</p>
+          <p>S% = Set Win/Loss Percentage</p>
+          <p>G% = Game Win/Loss Percentage</p>
         </div>
       </section>
 
