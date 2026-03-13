@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createAdminLeague } from "@/lib/api";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { APP_COLORS } from "@/lib/theme-colors";
 
 type NoticeType = "success" | "error";
 type Notice = {
@@ -69,7 +70,21 @@ export function CreateLeagueClient() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl space-y-6 px-6 py-8">
+    <main
+      className="relative min-h-screen overflow-hidden px-6 py-10"
+      style={{
+        background: `linear-gradient(135deg, ${APP_COLORS.login.backgroundFrom} 0%, ${APP_COLORS.login.backgroundTo} 100%)`,
+      }}
+    >
+      <div
+        className="pointer-events-none absolute -left-20 -top-24 h-64 w-64 rounded-full blur-3xl"
+        style={{ backgroundColor: `${APP_COLORS.brand.primary}33` }}
+      />
+      <div
+        className="pointer-events-none absolute -bottom-24 -right-20 h-72 w-72 rounded-full blur-3xl"
+        style={{ backgroundColor: `${APP_COLORS.brand.secondary}33` }}
+      />
+      <section className="relative mx-auto max-w-6xl space-y-8 py-8">
       {notice ? (
         <div className="pointer-events-none fixed left-1/2 top-4 z-50 -translate-x-1/2">
           <div
@@ -82,18 +97,22 @@ export function CreateLeagueClient() {
 
       <header className="flex flex-wrap items-start sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Create League</h1>
+          <h1 className="text-2xl font-semibold" style={{ color: APP_COLORS.login.title }}>
+            Create League
+          </h1>
         </div>
         <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
           <Link
             href="/admin"
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            className="rounded-lg px-3 py-2 text-sm font-semibold shadow-md transition hover:brightness-110"
+            style={{ backgroundColor: APP_COLORS.brand.primary, color: APP_COLORS.login.ctaText }}
           >
             Dashboard
           </Link>
           <Link
             href="/admin/leagues"
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            className="rounded-lg border px-3 py-2 text-sm hover:bg-white/70"
+            style={{ borderColor: APP_COLORS.login.panelBorder, color: APP_COLORS.login.subtitle }}
           >
             Leagues
           </Link>
@@ -102,20 +121,29 @@ export function CreateLeagueClient() {
 
       <form
         onSubmit={(event) => void onSubmit(event)}
-        className="space-y-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
+        className="space-y-3 rounded-2xl border p-4 shadow-xl"
+        style={{
+          backgroundColor: APP_COLORS.login.panelBackground,
+          borderColor: APP_COLORS.login.panelBorder,
+          boxShadow: `0 24px 56px ${APP_COLORS.login.panelShadow}`,
+        }}
       >
-        <h3 className="text-lg font-semibold">Create League</h3>
+        <h3 className="text-lg font-semibold" style={{ color: APP_COLORS.login.title }}>
+          Create League
+        </h3>
         <input
           name="name"
           placeholder="League name"
           required
           className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          style={{ borderColor: APP_COLORS.login.panelBorder }}
         />
         <select
           name="rule_type"
           required
           defaultValue="three_sets"
           className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          style={{ borderColor: APP_COLORS.login.panelBorder }}
         >
           <option value="three_sets">Three Sets</option>
           <option value="two_sets_tiebreak">Two Sets + Tiebreak</option>
@@ -123,14 +151,12 @@ export function CreateLeagueClient() {
         <select
           name="scoring_rule_type"
           required
-          defaultValue="1"
+          defaultValue="3"
           className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          style={{ borderColor: APP_COLORS.login.panelBorder }}
         >
-          <option value="1">Scoring Rule 1 - Simple (3/0, draw 1)</option>
-          <option value="2">Scoring Rule 2 - Weighted Tie-break</option>
-          <option value="3">Scoring Rule 3 (Reserved)</option>
-          <option value="4">Scoring Rule 4 (Reserved)</option>
-          <option value="5">Scoring Rule 5 (Reserved)</option>
+          <option value="3">Scoring Rule 3 - Standard Three Sets</option>
+          <option value="4">Scoring Rule 4 - Standard Three Sets (Third Set Tie-break)</option>
         </select>
         <input
           name="number_of_players"
@@ -140,6 +166,7 @@ export function CreateLeagueClient() {
           required
           placeholder="Number of players"
           className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          style={{ borderColor: APP_COLORS.login.panelBorder }}
         />
         <input
           name="first_round_weeks"
@@ -149,11 +176,13 @@ export function CreateLeagueClient() {
           required
           placeholder="First round weeks"
           className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          style={{ borderColor: APP_COLORS.login.panelBorder }}
         />
         <button
           type="submit"
           disabled={isSubmitting}
-          className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
+          className="rounded-lg px-4 py-2 text-sm font-semibold shadow-md transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+          style={{ backgroundColor: APP_COLORS.brand.primary, color: APP_COLORS.login.ctaText }}
         >
           {isSubmitting ? (
             <span className="inline-flex items-center gap-2">
@@ -165,6 +194,7 @@ export function CreateLeagueClient() {
           )}
         </button>
       </form>
+      </section>
     </main>
   );
 }

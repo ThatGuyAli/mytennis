@@ -101,7 +101,7 @@ CREATE TABLE matches (
   played_at date,
 
   status text DEFAULT 'scheduled'
-  CHECK (status IN ('scheduled','completed')),
+  CHECK (status IN ('scheduled','completed','dnf','dns')),
 
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz,
@@ -113,6 +113,12 @@ CREATE TABLE matches (
 
   CHECK (player1_id <> player2_id)
 );
+
+-- Match status values:
+--   scheduled  Match is planned but not yet played
+--   completed  Match finished with full result
+--   dnf        Did Not Finish - match abandoned mid-play (partial sets may exist)
+--   dns        Did Not Show Up - player(s) did not attend
 
 
 /* =====================================================

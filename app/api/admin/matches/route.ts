@@ -29,6 +29,7 @@ type UpdateWeekMatchesBody = {
   week_number?: number;
   played_at?: string;
   match_id?: string;
+  status?: "dns";
   matches?: Array<{
     player1_id?: string;
     player2_id?: string;
@@ -302,6 +303,7 @@ export async function PATCH(request: NextRequest) {
   const matchId = body?.match_id?.trim() ?? "";
   const weekNumber = Number(body?.week_number);
   const playedAt = body?.played_at?.trim() ?? "";
+  const statusUpdate = body?.status;
   const matchesInput = body?.matches ?? [];
 
   if (matchId) {
@@ -312,6 +314,34 @@ export async function PATCH(request: NextRequest) {
       [matchId],
     );
     const setsCount = Number(existingSets.rows[0]?.count ?? "0");
+
+    if (statusUpdate === "dns") {
+      if (setsCount > 0) {
+        return badRequestResponse(
+          "Cannot set DNS for a match that has results. Remove results first.",
+        );
+      }
+      const updatedMatch = await query<{ id: string }>(
+        `UPDATE matches
+         SET status = 'dns',
+             updated_at = now(),
+             updated_by = $2
+         WHERE id = $1
+           AND deleted_at IS NULL
+         RETURNING id`,
+        [matchId, session.userId],
+      );
+      if (updatedMatch.rowCount === 0) {
+        return NextResponse.json({ error: "Match not found." }, { status: 404 });
+      }
+      return NextResponse.json({
+        data: {
+          updated: true,
+          message: "Match marked as DNS (Did Not Show Up).",
+        },
+      });
+    }
+
     if (setsCount > 0) {
       return badRequestResponse(
         "This match already has results. Match date cannot be edited.",

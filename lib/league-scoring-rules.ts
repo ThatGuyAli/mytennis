@@ -1,15 +1,21 @@
 export enum LeagueScoringRuleType {
   SIMPLE = 1,
   WEIGHTED_TIEBREAK = 2,
+  STANDARD_THREE_SETS = 3,
+  STANDARD_THREE_SETS_THIRD_SET_TIEBREAK = 4,
 }
 
 export type WinnerPointsContext = {
   hasTieBreakSet: boolean;
+  /** For STANDARD_THREE_SETS: 0 = 2-0 win, 1 = 2-1 win */
+  setsWonByLoser?: number;
 };
 
 export type LoserPointsContext = {
   hasTieBreakSet: boolean;
   totalGamesWon: number;
+  /** For STANDARD_THREE_SETS: 0 = 2-0 loss, 1 = 2-1 loss */
+  setsWonByLoser?: number;
 };
 
 export type LeagueScoringRule = {
@@ -44,6 +50,20 @@ export const LEAGUE_SCORING_RULES: Record<LeagueScoringRuleType, LeagueScoringRu
       context.hasTieBreakSet ? 3 : weightedLoserPointsWithoutTieBreak(context.totalGamesWon),
     getDrawPoints: () => 2.5,
   },
+  [LeagueScoringRuleType.STANDARD_THREE_SETS]: {
+    type: LeagueScoringRuleType.STANDARD_THREE_SETS,
+    label: "Standard Three Sets",
+    getWinnerPoints: (context) => (context.setsWonByLoser === 1 ? 2 : 3),
+    getLoserPoints: (context) => (context.setsWonByLoser === 1 ? 1 : 0),
+    getDrawPoints: () => 1.5,
+  },
+  [LeagueScoringRuleType.STANDARD_THREE_SETS_THIRD_SET_TIEBREAK]: {
+    type: LeagueScoringRuleType.STANDARD_THREE_SETS_THIRD_SET_TIEBREAK,
+    label: "Standard Three Sets (Third Set Tie-break)",
+    getWinnerPoints: (context) => (context.setsWonByLoser === 1 ? 2 : 3),
+    getLoserPoints: (context) => (context.setsWonByLoser === 1 ? 1 : 0),
+    getDrawPoints: () => 1.5,
+  },
 };
 
 export function getLeagueScoringRule(ruleType: LeagueScoringRuleType) {
@@ -53,6 +73,12 @@ export function getLeagueScoringRule(ruleType: LeagueScoringRuleType) {
 export function getLeagueScoringRuleByNumber(ruleType: number) {
   if (ruleType === LeagueScoringRuleType.WEIGHTED_TIEBREAK) {
     return LEAGUE_SCORING_RULES[LeagueScoringRuleType.WEIGHTED_TIEBREAK];
+  }
+  if (ruleType === LeagueScoringRuleType.STANDARD_THREE_SETS) {
+    return LEAGUE_SCORING_RULES[LeagueScoringRuleType.STANDARD_THREE_SETS];
+  }
+  if (ruleType === LeagueScoringRuleType.STANDARD_THREE_SETS_THIRD_SET_TIEBREAK) {
+    return LEAGUE_SCORING_RULES[LeagueScoringRuleType.STANDARD_THREE_SETS_THIRD_SET_TIEBREAK];
   }
   return LEAGUE_SCORING_RULES[LeagueScoringRuleType.SIMPLE];
 }

@@ -189,6 +189,7 @@ export function updateAdminMatches(
     week_number?: number;
     played_at?: string;
     match_id?: string;
+    status?: "dns";
     matches?: Array<{ player1_id: string; player2_id: string }>;
   },
 ) {
@@ -205,6 +206,10 @@ export function upsertAdminSet(
     player1_games: number;
     player2_games: number;
     is_tiebreak: boolean;
+    /** When true, match status is set to 'dnf' instead of 'completed' */
+    status_dnf?: boolean;
+    /** When true, match status is set to 'dns' instead of 'completed' */
+    status_dns?: boolean;
   },
 ) {
   return requestData<{ upserted: boolean }>(

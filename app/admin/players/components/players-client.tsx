@@ -12,6 +12,7 @@ import {
   getAdminPlayersAll,
   getAdminPlayersByLeague,
 } from "@/lib/api";
+import { APP_COLORS } from "@/lib/theme-colors";
 
 type LeagueRow = {
   id: string;
@@ -43,6 +44,13 @@ function formatDate(value?: string) {
   if (Number.isNaN(parsed.getTime())) return value;
   return parsed.toLocaleDateString();
 }
+
+const PANEL_CLASS = "rounded-2xl border p-4 shadow-xl";
+const PANEL_STYLE = {
+  backgroundColor: APP_COLORS.login.panelBackground,
+  borderColor: APP_COLORS.login.panelBorder,
+  boxShadow: `0 24px 56px ${APP_COLORS.login.panelShadow}`,
+} as const;
 
 export function PlayersClient() {
   const [leagues, setLeagues] = useState<LeagueRow[]>([]);
@@ -174,7 +182,21 @@ export function PlayersClient() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl space-y-6 px-6 py-8">
+    <main
+      className="relative min-h-screen overflow-hidden px-6 py-10"
+      style={{
+        background: `linear-gradient(135deg, ${APP_COLORS.login.backgroundFrom} 0%, ${APP_COLORS.login.backgroundTo} 100%)`,
+      }}
+    >
+      <div
+        className="pointer-events-none absolute -left-20 -top-24 h-64 w-64 rounded-full blur-3xl"
+        style={{ backgroundColor: `${APP_COLORS.brand.primary}33` }}
+      />
+      <div
+        className="pointer-events-none absolute -bottom-24 -right-20 h-72 w-72 rounded-full blur-3xl"
+        style={{ backgroundColor: `${APP_COLORS.brand.secondary}33` }}
+      />
+      <section className="relative mx-auto max-w-6xl space-y-8 py-8">
       <ConfirmModal
         isOpen={Boolean(pendingDeletePlayer)}
         title="Confirm Deletion"
@@ -206,18 +228,23 @@ export function PlayersClient() {
 
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Players Management</h1>
+          <h1 className="text-2xl font-semibold" style={{ color: APP_COLORS.login.title }}>
+            Players Management
+          </h1>
         </div>
         <Link
           href="/admin"
-          className="rounded-md border border-zinc-300 px-3 py-2 text-sm hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+          className="rounded-lg px-3 py-2 text-sm font-semibold shadow-md transition hover:brightness-110"
+          style={{ backgroundColor: APP_COLORS.brand.primary, color: APP_COLORS.login.ctaText }}
         >
           Dashboard
         </Link>
       </header>
 
-      <section className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
-        <h2 className="text-lg font-semibold">Create Player</h2>
+      <section className={PANEL_CLASS} style={PANEL_STYLE}>
+        <h2 className="text-lg font-semibold" style={{ color: APP_COLORS.login.title }}>
+          Create Player
+        </h2>
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -241,7 +268,8 @@ export function PlayersClient() {
           <button
             type="submit"
             disabled={isCreatingPlayer}
-            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
+            className="rounded-lg px-4 py-2 text-sm font-semibold shadow-md transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+            style={{ backgroundColor: APP_COLORS.brand.primary, color: APP_COLORS.login.ctaText }}
           >
             {isCreatingPlayer ? (
               <span className="inline-flex items-center gap-2">
@@ -255,8 +283,10 @@ export function PlayersClient() {
         </form>
       </section>
 
-      <section className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
-        <h2 className="text-lg font-semibold">Players by League</h2>
+      <section className={PANEL_CLASS} style={PANEL_STYLE}>
+        <h2 className="text-lg font-semibold" style={{ color: APP_COLORS.login.title }}>
+          Players by League
+        </h2>
         <div className="mt-3 max-w-md">
           <select
             value={selectedLeagueId}
@@ -327,8 +357,10 @@ export function PlayersClient() {
         </div>
       </section>
 
-      <section className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
-        <h2 className="text-lg font-semibold">All Players</h2>
+      <section className={PANEL_CLASS} style={PANEL_STYLE}>
+        <h2 className="text-lg font-semibold" style={{ color: APP_COLORS.login.title }}>
+          All Players
+        </h2>
         <div className="mt-3 max-w-sm">
           <input
             value={nameFilter}
@@ -390,6 +422,7 @@ export function PlayersClient() {
             </tbody>
           </table>
         </div>
+      </section>
       </section>
     </main>
   );

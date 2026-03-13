@@ -1,9 +1,10 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { MatchesOverviewSection } from "@/app/components/matches-overview-section";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { ApiError, getAdminDashboard, logoutAdmin, upsertAdminSet } from "@/lib/api";
 import { APP_COLORS } from "@/lib/theme-colors";
@@ -61,12 +62,6 @@ type InlineSetFormRow = {
   player2_games: string;
 };
 
-function formatDate(value: string | null) {
-  if (!value) return "Not played yet";
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString();
-}
-
 function noticeClassName(type: NoticeType) {
   if (type === "success") {
     return "border-green-300 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950/40 dark:text-green-200";
@@ -92,6 +87,9 @@ export function AdminClient() {
     { set_number: 2, player1_games: "0", player2_games: "0" },
     { set_number: 3, player1_games: "0", player2_games: "0" },
   ]);
+  const [inlineResultIsDnf, setInlineResultIsDnf] = useState(false);
+  const [inlineResultIsDns, setInlineResultIsDns] = useState(false);
+  const [selectedWeekByLeague, setSelectedWeekByLeague] = useState<Record<string, number>>({});
 
   function showNotice(type: NoticeType, message: string) {
     setNotice({ type, message });
@@ -117,6 +115,36 @@ export function AdminClient() {
     }));
   }, [dashboard]);
 
+  function getDefaultWeekForLeague(
+    league: { id: string; name: string; rule_type: League["rule_type"]; first_round_weeks: number },
+    matches: Array<{ week_number: number; played_at: string | null }>,
+  ): number {
+    if (matches.length === 0) return 1;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const weekDates = new Map<number, number>();
+    for (const m of matches) {
+      if (!m.played_at) continue;
+      const d = new Date(m.played_at).getTime();
+      const current = weekDates.get(m.week_number);
+      if (current === undefined || d < current) weekDates.set(m.week_number, d);
+    }
+    let soonestFutureWeek: number | null = null;
+    let soonestFutureTime = Infinity;
+    let mostRecentPastWeek: number | null = null;
+    let mostRecentPastTime = -Infinity;
+    for (const [week, time] of weekDates) {
+      if (time >= today.getTime() && time < soonestFutureTime) {
+        soonestFutureWeek = week;
+        soonestFutureTime = time;
+      }
+      if (time < today.getTime() && time > mostRecentPastTime) {
+        mostRecentPastWeek = week;
+        mostRecentPastTime = time;
+      }
+    }
+    return soonestFutureWeek ?? mostRecentPastWeek ?? 1;
+  }
 
   async function loadDashboard() {
     setLoading(true);
@@ -174,7 +202,12 @@ export function AdminClient() {
     return firstWinner !== 0 && secondWinner !== 0 && firstWinner !== secondWinner;
   }
 
-  function startInlineResultEdit(matchId: string, leagueId: string, matchSets: SetRow[]) {
+  function startInlineResultEdit(
+    matchId: string,
+    leagueId: string,
+    matchSets: SetRow[],
+    matchStatus?: string,
+  ) {
     const league = dashboard?.leagues.find((item) => item.id === leagueId);
     const ruleType = league?.rule_type ?? "three_sets";
     const sortedSets = [...matchSets].sort((a, b) => a.set_number - b.set_number);
@@ -182,6 +215,8 @@ export function AdminClient() {
 
     setEditingResultMatchId(matchId);
     setEditingResultRuleType(ruleType);
+    setInlineResultIsDnf(matchStatus === "dnf");
+    setInlineResultIsDns(matchStatus === "dns");
     setInlineSetRows([
       {
         set_number: 1,
@@ -204,6 +239,8 @@ export function AdminClient() {
   function cancelInlineResultEdit() {
     setEditingResultMatchId("");
     setEditingResultRuleType("three_sets");
+    setInlineResultIsDnf(false);
+    setInlineResultIsDns(false);
     setInlineSetRows([
       { set_number: 1, player1_games: "0", player2_games: "0" },
       { set_number: 2, player1_games: "0", player2_games: "0" },
@@ -224,22 +261,40 @@ export function AdminClient() {
   async function saveInlineResult(matchId: string) {
     const tieBreakEnabled = isTieBreakThirdSetActive(inlineSetRows);
     const rowsToSave =
-      editingResultRuleType === "two_sets_tiebreak"
-        ? tieBreakEnabled
-          ? inlineSetRows
-          : inlineSetRows.slice(0, 2)
-        : inlineSetRows;
+      inlineResultIsDns
+        ? inlineSetRows.slice(0, 2)
+        : editingResultRuleType === "two_sets_tiebreak"
+          ? tieBreakEnabled
+            ? inlineSetRows
+            : inlineSetRows.slice(0, 2)
+          : inlineSetRows;
 
-    for (const row of rowsToSave) {
-      const player1Games = Number(row.player1_games);
-      const player2Games = Number(row.player2_games);
-      if (!Number.isInteger(player1Games) || !Number.isInteger(player2Games)) {
-        showNotice("error", `Set ${row.set_number}: games must be integers.`);
+    if (inlineResultIsDns) {
+      const s1 = { p1: Number(rowsToSave[0]?.player1_games ?? 0), p2: Number(rowsToSave[0]?.player2_games ?? 0) };
+      const s2 = { p1: Number(rowsToSave[1]?.player1_games ?? 0), p2: Number(rowsToSave[1]?.player2_games ?? 0) };
+      const set1Valid = (s1.p1 === 6 && s1.p2 === 0) || (s1.p1 === 0 && s1.p2 === 6);
+      const set2Valid = (s2.p1 === 6 && s2.p2 === 0) || (s2.p1 === 0 && s2.p2 === 6);
+      const both60 = s1.p1 === 6 && s1.p2 === 0 && s2.p1 === 6 && s2.p2 === 0;
+      const both06 = s1.p1 === 0 && s1.p2 === 6 && s2.p1 === 0 && s2.p2 === 6;
+      if (!set1Valid || !set2Valid || (!both60 && !both06)) {
+        showNotice(
+          "error",
+          "For DNS, both sets must be 6-0 6-0 (player who showed up) or 0-6 0-6 (player who did not).",
+        );
         return;
       }
-      if (player1Games < 0 || player2Games < 0) {
-        showNotice("error", `Set ${row.set_number}: games cannot be negative.`);
-        return;
+    } else {
+      for (const row of rowsToSave) {
+        const player1Games = Number(row.player1_games);
+        const player2Games = Number(row.player2_games);
+        if (!Number.isInteger(player1Games) || !Number.isInteger(player2Games)) {
+          showNotice("error", `Set ${row.set_number}: games must be integers.`);
+          return;
+        }
+        if (player1Games < 0 || player2Games < 0) {
+          showNotice("error", `Set ${row.set_number}: games cannot be negative.`);
+          return;
+        }
       }
     }
 
@@ -252,11 +307,16 @@ export function AdminClient() {
           set_number: row.set_number,
           player1_games: Number(row.player1_games),
           player2_games: Number(row.player2_games),
-          is_tiebreak: editingResultRuleType === "two_sets_tiebreak" && row.set_number === 3,
+          is_tiebreak: inlineResultIsDns ? false : editingResultRuleType === "two_sets_tiebreak" && row.set_number === 3,
+          status_dnf: inlineResultIsDnf,
+          status_dns: inlineResultIsDns,
         });
       }
       await loadDashboard();
-      showNotice("success", "Match result saved successfully.");
+      showNotice(
+        "success",
+        inlineResultIsDns ? "Match marked as DNS (Did Not Show Up)." : "Match result saved successfully.",
+      );
       cancelInlineResultEdit();
     } catch (errorObject) {
       showNotice(
@@ -360,7 +420,18 @@ export function AdminClient() {
             Admin Dashboard
           </h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
+          <Link
+            href="/"
+            className="rounded-lg border px-3 py-2 text-sm font-semibold shadow-md transition hover:brightness-110"
+            style={{
+              borderColor: APP_COLORS.login.panelBorder,
+              backgroundColor: APP_COLORS.login.panelBackground,
+              color: APP_COLORS.login.title,
+            }}
+          >
+            Home
+          </Link>
           <button
             type="button"
             disabled={busy}
@@ -449,192 +520,28 @@ export function AdminClient() {
         </div>
       </section>
 
-      <section
-        className="rounded-2xl border p-4 shadow-xl"
-        style={{
-          backgroundColor: APP_COLORS.login.panelBackground,
-          borderColor: APP_COLORS.login.panelBorder,
-          boxShadow: `0 24px 56px ${APP_COLORS.login.panelShadow}`,
-        }}
-      >
-        <h2 className="text-lg font-semibold" style={{ color: APP_COLORS.login.title }}>
-          Matches Overview
-        </h2>
-        <div className="mt-3 space-y-4">
-          {matchesByLeague.map(({ league, matches }) => (
-            <div
-              key={league.id}
-              className="rounded-xl border p-3"
-              style={{ borderColor: APP_COLORS.login.panelBorder, backgroundColor: "#ffffffcc" }}
-            >
-              <h3 className="text-sm font-semibold" style={{ color: APP_COLORS.login.title }}>
-                {league.name}
-              </h3>
-              {matches.length === 0 ? (
-                <p className="mt-2 text-sm" style={{ color: APP_COLORS.login.subtitle }}>
-                  No matches yet.
-                </p>
-              ) : (
-                <div className="mt-2 overflow-x-auto">
-                  <table className="min-w-full border-collapse text-xs sm:text-sm">
-                    <thead>
-                      <tr className="border-b border-zinc-200 dark:border-zinc-700">
-                        <th className="px-1 py-1.5 text-left sm:px-3 sm:py-2" rowSpan={2}>
-                          Wk
-                        </th>
-                        <th className="px-1 py-1.5 text-left sm:px-3 sm:py-2" rowSpan={2}>
-                          Match
-                        </th>
-                        <th className="px-1 py-1.5 text-center sm:px-3 sm:py-2" colSpan={3}>
-                          Result
-                        </th>
-                        <th className="px-1 py-1.5 text-right sm:px-3 sm:py-2" rowSpan={2}>
-                          Action
-                        </th>
-                      </tr>
-                      <tr className="border-b border-zinc-200 dark:border-zinc-700">
-                        <th className="px-1 py-1.5 text-center sm:px-3 sm:py-2">Set 1</th>
-                        <th className="px-1 py-1.5 text-center sm:px-3 sm:py-2">Set 2</th>
-                        <th className="px-1 py-1.5 text-center sm:px-3 sm:py-2">
-                          {league.rule_type === "two_sets_tiebreak" ? "Tie-break" : "Set 3"}
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {matches.map((match) => {
-                        const matchSets = setsByMatch.get(match.id) ?? [];
-                        const setScores = [1, 2, 3].map((setNumber) => {
-                          const set = matchSets.find((item) => item.set_number === setNumber);
-                          return set ? `${set.player1_games}-${set.player2_games}` : "-";
-                        });
-                        const isEditingRow = editingResultMatchId === match.id;
-                        const tieBreakEnabled =
-                          editingResultRuleType === "two_sets_tiebreak"
-                            ? isTieBreakThirdSetActive(inlineSetRows)
-                            : false;
-
-                        return (
-                          <Fragment key={match.id}>
-                            <tr className="border-b border-zinc-200 dark:border-zinc-800">
-                              <td className="px-2 py-1.5 sm:px-3 sm:py-2">{match.week_number}</td>
-                              <td className="px-2 py-1.5 sm:px-3 sm:py-2">
-                                <div>{match.player1_name}</div><div>{match.player2_name}</div>
-                                <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                                  {formatDate(match.played_at)}
-                                </div>
-                                {isEditingRow && editingResultRuleType === "two_sets_tiebreak" ? (
-                                  <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                                    {tieBreakEnabled
-                                      ? "Tie-break active (1-1 after two sets)"
-                                      : "Tie-break unlocks when sets are 1-1"}
-                                  </div>
-                                ) : null}
-                              </td>
-                              {[1, 2, 3].map((setNumber, index) => {
-                                const editingSet = inlineSetRows.find(
-                                  (row) => row.set_number === setNumber,
-                                );
-                                const isThirdSetTieBreak =
-                                  editingResultRuleType === "two_sets_tiebreak" && setNumber === 3;
-                                const isDisabled = isEditingRow && isThirdSetTieBreak && !tieBreakEnabled;
-
-                                return (
-                                  <td
-                                    key={`${match.id}-set-${index}`}
-                                    className="px-2 py-1.5 text-center sm:px-3 sm:py-2"
-                                  >
-                                    {isEditingRow ? (
-                                      <div className="flex flex-col sm:flex-row items-center justify-center gap-1">
-                                        <input
-                                          type="number"
-                                          min={0}
-                                          step={1}
-                                          value={editingSet?.player1_games ?? "0"}
-                                          onChange={(event) =>
-                                            updateInlineSetRow(
-                                              setNumber,
-                                              "player1_games",
-                                              event.target.value,
-                                            )
-                                          }
-                                          disabled={isDisabled}
-                                          className="w-10 rounded border border-zinc-300 bg-white px-1 py-0.5 text-center text-xs disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900"
-                                        />
-                                      
-                                        <input
-                                          type="number"
-                                          min={0}
-                                          step={1}
-                                          value={editingSet?.player2_games ?? "0"}
-                                          onChange={(event) =>
-                                            updateInlineSetRow(
-                                              setNumber,
-                                              "player2_games",
-                                              event.target.value,
-                                            )
-                                          }
-                                          disabled={isDisabled}
-                                          className="w-10 rounded border border-zinc-300 bg-white px-1 py-0.5 text-center text-xs disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900"
-                                        />
-                                      </div>
-                                    ) : (
-                                      setScores[index]
-                                    )}
-                                  </td>
-                                );
-                              })}
-                              <td className="px-2 py-1.5 text-right sm:px-3 sm:py-2">
-                                {isEditingRow ? (
-                                  <div className="flex flex-col sm:flex-row justify-end gap-1 sm:gap-2">
-                                    <button
-                                      type="button"
-                                      disabled={busy}
-                                      onClick={() => void saveInlineResult(match.id)}
-                                      className="rounded-md bg-zinc-900 px-2 py-0.5 text-[11px] font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 sm:px-3 sm:py-1 sm:text-xs dark:bg-zinc-100 dark:text-zinc-900"
-                                    >
-                                      {busy ? (
-                                        <span className="inline-flex items-center gap-2">
-                                          <LoadingSpinner />
-                                          Saving...
-                                        </span>
-                                      ) : (
-                                        "Save"
-                                      )}
-                                    </button>
-                                    <button
-                                      type="button"
-                                      disabled={busy}
-                                      onClick={() => cancelInlineResultEdit()}
-                                      className="rounded-md border border-zinc-300 px-2 py-0.5 text-[11px] font-medium hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60 sm:px-3 sm:py-1 sm:text-xs dark:border-zinc-700 dark:hover:bg-zinc-900"
-                                    >
-                                      Cancel
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    disabled={busy}
-                                    onClick={() =>
-                                      startInlineResultEdit(match.id, match.league_id, matchSets)
-                                    }
-                                    className="rounded-md border border-zinc-300 px-2 py-0.5 text-[11px] font-medium hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60 sm:px-3 sm:py-1 sm:text-xs dark:border-zinc-700 dark:hover:bg-zinc-900"
-                                  >
-                                    {matchSets.length > 0 ? "Edit" : "Set"}
-                                  </button>
-                                )}
-                              </td>
-                            </tr>
-                          </Fragment>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </section>
+      <MatchesOverviewSection
+        matchesByLeague={matchesByLeague}
+        selectedWeekByLeague={selectedWeekByLeague}
+        onChangeLeagueWeek={(leagueId, week) =>
+          setSelectedWeekByLeague((prev) => ({ ...prev, [leagueId]: week }))
+        }
+        getDefaultWeekForLeague={getDefaultWeekForLeague}
+        setsByMatch={setsByMatch}
+        editingResultMatchId={editingResultMatchId}
+        editingResultRuleType={editingResultRuleType}
+        inlineSetRows={inlineSetRows}
+        inlineResultIsDns={inlineResultIsDns}
+        inlineResultIsDnf={inlineResultIsDnf}
+        busy={busy}
+        isTieBreakThirdSetActive={isTieBreakThirdSetActive}
+        updateInlineSetRow={updateInlineSetRow}
+        setInlineResultIsDnf={setInlineResultIsDnf}
+        setInlineResultIsDns={setInlineResultIsDns}
+        onSaveInlineResult={saveInlineResult}
+        onCancelInlineResultEdit={cancelInlineResultEdit}
+        onStartInlineResultEdit={startInlineResultEdit}
+      />
       </section>
     </main>
   );

@@ -175,7 +175,7 @@ CREATE TABLE matches (
   played_at date,
 
   status text DEFAULT 'scheduled'
-  CHECK (status IN ('scheduled','completed')),
+  CHECK (status IN ('scheduled','completed','dnf','dns')),
 
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz,
@@ -191,10 +191,12 @@ CREATE TABLE matches (
 
 Match status values:
 
-| Status    | Description                        |
-| --------- | ---------------------------------- |
-| scheduled | Match is planned but not completed |
-| completed | Match results have been entered    |
+| Status    | Description                                              |
+| --------- | -------------------------------------------------------- |
+| scheduled | Match is planned but not yet played                      |
+| completed | Match finished with full result                          |
+| dnf       | Did Not Finish – match abandoned mid-play (partial sets) |
+| dns       | Did Not Show Up – player(s) did not attend               |
 
 ---
 
@@ -376,6 +378,8 @@ export type AddPlayerToLeagueInput = {
 export type MatchStatus =
   | "scheduled"
   | "completed"
+  | "dnf"
+  | "dns"
 
 export type Match = {
   id: string

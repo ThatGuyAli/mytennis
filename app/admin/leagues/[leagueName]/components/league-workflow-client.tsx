@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { DragEvent, Fragment, useEffect, useMemo, useRef, useState } from "react";
 
+import { MatchesOverviewSection } from "@/app/components/matches-overview-section";
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import {
@@ -15,7 +16,9 @@ import {
   removePlayerFromLeague as removePlayerFromLeagueApi,
   updateAdminLeague,
   updateAdminMatches,
+  upsertAdminSet,
 } from "@/lib/api";
+import { APP_COLORS } from "@/lib/theme-colors";
 import type { League, LeagueRule, MatchStatus, Player } from "@/types";
 
 type LeagueAssignment = {
@@ -52,6 +55,12 @@ type WeekDraft = {
   played_at: string;
   slots: MatchSlot[];
   saved: boolean;
+};
+
+type InlineSetFormRow = {
+  set_number: number;
+  player1_games: string;
+  player2_games: string;
 };
 
 type NoticeType = "success" | "error";
@@ -134,12 +143,18 @@ const RULE_LABELS: Record<LeagueRule, string> = {
 const SCORING_RULE_LABELS: Record<number, string> = {
   1: "Rule 1 - Simple (3/0, draw 1)",
   2: "Rule 2 - Weighted Tie-break",
-  3: "Rule 3 (Reserved)",
-  4: "Rule 4 (Reserved)",
+  3: "Rule 3 - Standard Three Sets",
+  4: "Rule 4 - Standard Three Sets (Third Set Tie-break)",
   5: "Rule 5 (Reserved)",
 };
 
 const CREATE_NEW_PLAYER_OPTION = "__create_new_player__";
+const PANEL_CLASS = "rounded-2xl border p-4 shadow-xl";
+const PANEL_STYLE = {
+  backgroundColor: APP_COLORS.login.panelBackground,
+  borderColor: APP_COLORS.login.panelBorder,
+  boxShadow: `0 24px 56px ${APP_COLORS.login.panelShadow}`,
+} as const;
 
 export function LeagueWorkflowClient() {
   const router = useRouter();
@@ -170,6 +185,17 @@ export function LeagueWorkflowClient() {
   const [editingMatchId, setEditingMatchId] = useState<string>("");
   const [editingMatchDate, setEditingMatchDate] = useState<string>("");
   const [updatingMatchDateId, setUpdatingMatchDateId] = useState<string>("");
+  const [editingResultMatchId, setEditingResultMatchId] = useState("");
+  const [editingResultRuleType, setEditingResultRuleType] =
+    useState<League["rule_type"]>("three_sets");
+  const [inlineSetRows, setInlineSetRows] = useState<InlineSetFormRow[]>([
+    { set_number: 1, player1_games: "0", player2_games: "0" },
+    { set_number: 2, player1_games: "0", player2_games: "0" },
+    { set_number: 3, player1_games: "0", player2_games: "0" },
+  ]);
+  const [inlineResultIsDnf, setInlineResultIsDnf] = useState(false);
+  const [inlineResultIsDns, setInlineResultIsDns] = useState(false);
+  const [selectedWeekByLeague, setSelectedWeekByLeague] = useState<Record<string, number>>({});
   const matchesEditorRef = useRef<HTMLElement | null>(null);
   const [leagueForm, setLeagueForm] = useState<LeagueUpdateFormState>({
     name: "",
@@ -329,6 +355,164 @@ export function LeagueWorkflowClient() {
     if (!matchesEditorRef.current) return;
     matchesEditorRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [activePanel, editingWeekNumber]);
+
+  function parseSetValue(value: string) {
+    const parsed = Number(value);
+    return Number.isInteger(parsed) ? parsed : NaN;
+  }
+
+  function whoWonSet(player1Games: string, player2Games: string) {
+    const p1 = parseSetValue(player1Games);
+    const p2 = parseSetValue(player2Games);
+    if (!Number.isInteger(p1) || !Number.isInteger(p2) || p1 < 0 || p2 < 0 || p1 === p2) {
+      return 0;
+    }
+    return p1 > p2 ? 1 : 2;
+  }
+
+  function isTieBreakThirdSetActive(rows: InlineSetFormRow[]) {
+    const firstWinner = whoWonSet(rows[0]?.player1_games ?? "", rows[0]?.player2_games ?? "");
+    const secondWinner = whoWonSet(rows[1]?.player1_games ?? "", rows[1]?.player2_games ?? "");
+    return firstWinner !== 0 && secondWinner !== 0 && firstWinner !== secondWinner;
+  }
+
+  function startInlineResultEdit(
+    matchId: string,
+    leagueId: string,
+    matchSets: MatchSetRow[],
+    matchStatus?: string,
+  ) {
+    const league = dashboard?.leagues.find((item) => item.id === leagueId) ?? details?.league;
+    const ruleType = league?.rule_type ?? "three_sets";
+    const sortedSets = [...matchSets].sort((a, b) => a.set_number - b.set_number);
+    const bySetNumber = new Map(sortedSets.map((set) => [set.set_number, set]));
+
+    setEditingResultMatchId(matchId);
+    setEditingResultRuleType(ruleType);
+    setInlineResultIsDnf(matchStatus === "dnf");
+    setInlineResultIsDns(matchStatus === "dns");
+    setInlineSetRows([
+      {
+        set_number: 1,
+        player1_games: String(bySetNumber.get(1)?.player1_games ?? 0),
+        player2_games: String(bySetNumber.get(1)?.player2_games ?? 0),
+      },
+      {
+        set_number: 2,
+        player1_games: String(bySetNumber.get(2)?.player1_games ?? 0),
+        player2_games: String(bySetNumber.get(2)?.player2_games ?? 0),
+      },
+      {
+        set_number: 3,
+        player1_games: String(bySetNumber.get(3)?.player1_games ?? 0),
+        player2_games: String(bySetNumber.get(3)?.player2_games ?? 0),
+      },
+    ]);
+  }
+
+  function cancelInlineResultEdit() {
+    setEditingResultMatchId("");
+    setEditingResultRuleType("three_sets");
+    setInlineResultIsDnf(false);
+    setInlineResultIsDns(false);
+    setInlineSetRows([
+      { set_number: 1, player1_games: "0", player2_games: "0" },
+      { set_number: 2, player1_games: "0", player2_games: "0" },
+      { set_number: 3, player1_games: "0", player2_games: "0" },
+    ]);
+  }
+
+  function updateInlineSetRow(
+    setNumber: number,
+    side: "player1_games" | "player2_games",
+    value: string,
+  ) {
+    setInlineSetRows((prev) =>
+      prev.map((row) => (row.set_number === setNumber ? { ...row, [side]: value } : row)),
+    );
+  }
+
+  async function saveInlineResult(matchId: string) {
+    const tieBreakEnabled = isTieBreakThirdSetActive(inlineSetRows);
+    const rowsToSave =
+      inlineResultIsDns
+        ? inlineSetRows.slice(0, 2)
+        : editingResultRuleType === "two_sets_tiebreak"
+          ? tieBreakEnabled
+            ? inlineSetRows
+            : inlineSetRows.slice(0, 2)
+          : inlineSetRows;
+
+    if (inlineResultIsDns) {
+      const s1 = {
+        p1: Number(rowsToSave[0]?.player1_games ?? 0),
+        p2: Number(rowsToSave[0]?.player2_games ?? 0),
+      };
+      const s2 = {
+        p1: Number(rowsToSave[1]?.player1_games ?? 0),
+        p2: Number(rowsToSave[1]?.player2_games ?? 0),
+      };
+      const set1Valid = (s1.p1 === 6 && s1.p2 === 0) || (s1.p1 === 0 && s1.p2 === 6);
+      const set2Valid = (s2.p1 === 6 && s2.p2 === 0) || (s2.p1 === 0 && s2.p2 === 6);
+      const both60 = s1.p1 === 6 && s1.p2 === 0 && s2.p1 === 6 && s2.p2 === 0;
+      const both06 = s1.p1 === 0 && s1.p2 === 6 && s2.p1 === 0 && s2.p2 === 6;
+      if (!set1Valid || !set2Valid || (!both60 && !both06)) {
+        setNotice({
+          type: "error",
+          message:
+            "For DNS, both sets must be 6-0 6-0 (player who showed up) or 0-6 0-6 (player who did not).",
+        });
+        return;
+      }
+    } else {
+      for (const row of rowsToSave) {
+        const player1Games = Number(row.player1_games);
+        const player2Games = Number(row.player2_games);
+        if (!Number.isInteger(player1Games) || !Number.isInteger(player2Games)) {
+          setNotice({ type: "error", message: `Set ${row.set_number}: games must be integers.` });
+          return;
+        }
+        if (player1Games < 0 || player2Games < 0) {
+          setNotice({ type: "error", message: `Set ${row.set_number}: games cannot be negative.` });
+          return;
+        }
+      }
+    }
+
+    setBusy(true);
+    setNotice(null);
+    try {
+      for (const row of rowsToSave) {
+        await upsertAdminSet({
+          match_id: matchId,
+          set_number: row.set_number,
+          player1_games: Number(row.player1_games),
+          player2_games: Number(row.player2_games),
+          is_tiebreak:
+            inlineResultIsDns
+              ? false
+              : editingResultRuleType === "two_sets_tiebreak" && row.set_number === 3,
+          status_dnf: inlineResultIsDnf,
+          status_dns: inlineResultIsDns,
+        });
+      }
+      await refreshAll();
+      setNotice({
+        type: "success",
+        message: inlineResultIsDns
+          ? "Match marked as DNS (Did Not Show Up)."
+          : "Match result saved successfully.",
+      });
+      cancelInlineResultEdit();
+    } catch (errorObject) {
+      setNotice({
+        type: "error",
+        message: errorObject instanceof Error ? errorObject.message : "Failed to save match result.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
 
   function updateCurrentWeekDraft(updater: (draft: WeekDraft) => WeekDraft) {
     setWeekDrafts((prev) => {
@@ -781,6 +965,60 @@ export function LeagueWorkflowClient() {
     return map;
   }, [details?.sets]);
 
+  const matchesByLeague = useMemo(() => {
+    if (!details?.league) {
+      return [] as {
+        league: League;
+        matches: Array<
+          LeagueMatchRow & { league_id: string; league_name?: string }
+        >;
+      }[];
+    }
+    return [
+      {
+        league: details.league,
+        matches: [...(details.matches ?? [])]
+          .map((match) => ({
+            ...match,
+            league_id: details.league.id,
+            league_name: details.league.name,
+          }))
+          .sort((a, b) => a.week_number - b.week_number),
+      },
+    ];
+  }, [details?.league, details?.matches]);
+
+  function getDefaultWeekForLeague(
+    league: { id: string; name: string; rule_type: League["rule_type"]; first_round_weeks: number },
+    matches: Array<{ week_number: number; played_at: string | null }>,
+  ): number {
+    if (matches.length === 0) return 1;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const weekDates = new Map<number, number>();
+    for (const m of matches) {
+      if (!m.played_at) continue;
+      const d = new Date(m.played_at).getTime();
+      const current = weekDates.get(m.week_number);
+      if (current === undefined || d < current) weekDates.set(m.week_number, d);
+    }
+    let soonestFutureWeek: number | null = null;
+    let soonestFutureTime = Infinity;
+    let mostRecentPastWeek: number | null = null;
+    let mostRecentPastTime = -Infinity;
+    for (const [week, time] of weekDates) {
+      if (time >= today.getTime() && time < soonestFutureTime) {
+        soonestFutureWeek = week;
+        soonestFutureTime = time;
+      }
+      if (time < today.getTime() && time > mostRecentPastTime) {
+        mostRecentPastWeek = week;
+        mostRecentPastTime = time;
+      }
+    }
+    return soonestFutureWeek ?? mostRecentPastWeek ?? 1;
+  }
+
   const matchesByWeek = useMemo(() => {
     const map = new Map<number, LeagueMatchRow[]>();
     for (const match of details?.matches ?? []) {
@@ -810,14 +1048,37 @@ export function LeagueWorkflowClient() {
 
   if (loading) {
     return (
-      <main className="mx-auto max-w-6xl space-y-6 px-6 py-8">
-        <p className="text-sm text-zinc-600 dark:text-zinc-300">Loading league page...</p>
+      <main
+        className="relative min-h-screen overflow-hidden px-6 py-10"
+        style={{
+          background: `linear-gradient(135deg, ${APP_COLORS.login.backgroundFrom} 0%, ${APP_COLORS.login.backgroundTo} 100%)`,
+        }}
+      >
+        <section className="relative mx-auto max-w-6xl space-y-8 py-8">
+          <p className="text-sm" style={{ color: APP_COLORS.login.subtitle }}>
+            Loading league page...
+          </p>
+        </section>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto max-w-6xl space-y-6 px-6 py-8">
+    <main
+      className="relative min-h-screen overflow-hidden px-6 py-10"
+      style={{
+        background: `linear-gradient(135deg, ${APP_COLORS.login.backgroundFrom} 0%, ${APP_COLORS.login.backgroundTo} 100%)`,
+      }}
+    >
+      <div
+        className="pointer-events-none absolute -left-20 -top-24 h-64 w-64 rounded-full blur-3xl"
+        style={{ backgroundColor: `${APP_COLORS.brand.primary}33` }}
+      />
+      <div
+        className="pointer-events-none absolute -bottom-24 -right-20 h-72 w-72 rounded-full blur-3xl"
+        style={{ backgroundColor: `${APP_COLORS.brand.secondary}33` }}
+      />
+      <section className="relative mx-auto max-w-6xl space-y-8 py-8">
       <ConfirmModal
         isOpen={Boolean(pendingRemovePlayer)}
         title="Confirm Player Removal"
@@ -865,12 +1126,15 @@ export function LeagueWorkflowClient() {
 
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">{details?.league.name ?? initialLeagueName}</h1>
+          <h1 className="text-2xl font-semibold" style={{ color: APP_COLORS.login.title }}>
+            {details?.league.name ?? initialLeagueName}
+          </h1>
         </div>
         <div className="flex items-center gap-2">
           <Link
             href="/admin"
-            className="rounded-md border border-zinc-300 px-3 py-2 text-sm hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
+            className="rounded-lg px-3 py-2 text-sm font-semibold shadow-md transition hover:brightness-110"
+            style={{ backgroundColor: APP_COLORS.brand.primary, color: APP_COLORS.login.ctaText }}
           >
             Dashboard
           </Link>
@@ -878,7 +1142,7 @@ export function LeagueWorkflowClient() {
       </header>
 
       {details?.league ? (
-        <section className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+        <section className={PANEL_CLASS} style={PANEL_STYLE}>
           <div className="space-y-3">
             <div className="flex items-start justify-between gap-3">
               <h2 className="text-lg font-semibold">League Details</h2>
@@ -997,11 +1261,14 @@ export function LeagueWorkflowClient() {
                           }
                           className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
                         >
-                          <option value="1">{SCORING_RULE_LABELS[1]}</option>
-                          <option value="2">{SCORING_RULE_LABELS[2]}</option>
+                          {!["3", "4"].includes(leagueForm.scoring_rule_type) ? (
+                            <option value={leagueForm.scoring_rule_type}>
+                              {SCORING_RULE_LABELS[Number(leagueForm.scoring_rule_type)] ??
+                                `Rule ${leagueForm.scoring_rule_type}`}
+                            </option>
+                          ) : null}
                           <option value="3">{SCORING_RULE_LABELS[3]}</option>
                           <option value="4">{SCORING_RULE_LABELS[4]}</option>
-                          <option value="5">{SCORING_RULE_LABELS[5]}</option>
                         </select>
                       ) : (
                         <span>
@@ -1065,7 +1332,7 @@ export function LeagueWorkflowClient() {
       ) : null}
 
       {activePanel === "attach" ? (
-        <section className="space-y-4 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+        <section className={`space-y-4 ${PANEL_CLASS}`} style={PANEL_STYLE}>
           <h2 className="text-lg font-semibold">Attach Players</h2>
           <p className="text-sm text-zinc-600 dark:text-zinc-300">
             Seats used: {assignedCount}/{seatLimit}
@@ -1104,7 +1371,8 @@ export function LeagueWorkflowClient() {
               <button
                 type="submit"
                 disabled={busy}
-                className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
+                className="rounded-lg px-4 py-2 text-sm font-semibold shadow-md transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+                style={{ backgroundColor: APP_COLORS.brand.primary, color: APP_COLORS.login.ctaText }}
               >
                 {busy ? (
                   <span className="inline-flex items-center gap-2">
@@ -1134,7 +1402,8 @@ export function LeagueWorkflowClient() {
       {activePanel === "matches" && selectedLeague ? (
         <section
           ref={matchesEditorRef}
-          className="space-y-4 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
+          className={`space-y-4 ${PANEL_CLASS}`}
+          style={PANEL_STYLE}
         >
           <h2 className="text-lg font-semibold">
             {editingWeekNumber ? `Edit Week ${editingWeekNumber} Matches` : "Define Matches"}
@@ -1285,7 +1554,8 @@ export function LeagueWorkflowClient() {
                   type="button"
                   onClick={() => saveWeekTemporarily()}
                   disabled={busy}
-                  className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
+                  className="rounded-lg px-4 py-2 text-sm font-semibold shadow-md transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+                  style={{ backgroundColor: APP_COLORS.brand.primary, color: APP_COLORS.login.ctaText }}
                 >
                   Save Week
                 </button>
@@ -1326,7 +1596,7 @@ export function LeagueWorkflowClient() {
       ) : null}
 
       {activePanel === "matches" ? (
-        <section className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+        <section className={PANEL_CLASS} style={PANEL_STYLE}>
           <h3 className="text-sm font-semibold">Temporary Week Selections</h3>
           {temporarySelections.length === 0 ? (
             <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">
@@ -1374,14 +1644,15 @@ export function LeagueWorkflowClient() {
         </section>
       ) : null}
 
-      <section className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+      <section className={PANEL_CLASS} style={PANEL_STYLE}>
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-lg font-semibold">Related Players</h3>
           {hasEmptySeat && (<button
             type="button"
             onClick={() => setActivePanel((prev) => (prev === "attach" ? null : "attach"))}
             disabled={!hasEmptySeat}
-            className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
+            className="rounded-lg px-4 py-2 text-sm font-semibold shadow-md transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+            style={{ backgroundColor: APP_COLORS.brand.primary, color: APP_COLORS.login.ctaText }}
           >
             Attach Players
           </button>)}
@@ -1435,7 +1706,7 @@ export function LeagueWorkflowClient() {
         </div>
       </section>
 
-      <section className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+      <section className={PANEL_CLASS} style={PANEL_STYLE}>
         <div className="flex items-center justify-between gap-3">
           <h3 className="text-lg font-semibold">Matches by Week</h3>
           {!hasSavedAllWeeksInDb && (
@@ -1567,16 +1838,8 @@ export function LeagueWorkflowClient() {
                                     Cancel
                                   </button>
                                 </>
-                              ) : hasResult ? (
-                                <button
-                                  type="button"
-                                  onClick={() => router.push("/admin")}
-                                  className="rounded-md border border-zinc-300 px-3 py-1 text-xs font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-                                >
-                                  Edit Result
-                                </button>
-                              ) : (
-                                <button
+                              ) : !hasResult &&
+                                (<button
                                   type="button"
                                   onClick={() => {
                                     setEditingMatchId(match.id);
@@ -1713,15 +1976,7 @@ export function LeagueWorkflowClient() {
                                         Cancel
                                       </button>
                                     </>
-                                  ) : hasResult ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => router.push("/admin")}
-                                      className="rounded-md border border-zinc-300 px-3 py-1 text-xs font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-900"
-                                    >
-                                      Edit Result
-                                    </button>
-                                  ) : (
+                                  ) : !hasResult && (
                                     <button
                                       type="button"
                                       onClick={() => {
@@ -1746,6 +2001,31 @@ export function LeagueWorkflowClient() {
             </div>
           </>
         )}
+      </section>
+
+      <MatchesOverviewSection
+        title="Matches Overview"
+        matchesByLeague={matchesByLeague}
+        selectedWeekByLeague={selectedWeekByLeague}
+        onChangeLeagueWeek={(leagueId, week) =>
+          setSelectedWeekByLeague((prev) => ({ ...prev, [leagueId]: week }))
+        }
+        getDefaultWeekForLeague={getDefaultWeekForLeague}
+        setsByMatch={setsByMatch}
+        editingResultMatchId={editingResultMatchId}
+        editingResultRuleType={editingResultRuleType}
+        inlineSetRows={inlineSetRows}
+        inlineResultIsDns={inlineResultIsDns}
+        inlineResultIsDnf={inlineResultIsDnf}
+        busy={busy}
+        isTieBreakThirdSetActive={isTieBreakThirdSetActive}
+        updateInlineSetRow={updateInlineSetRow}
+        setInlineResultIsDnf={setInlineResultIsDnf}
+        setInlineResultIsDns={setInlineResultIsDns}
+        onSaveInlineResult={saveInlineResult}
+        onCancelInlineResultEdit={cancelInlineResultEdit}
+        onStartInlineResultEdit={startInlineResultEdit}
+      />
       </section>
     </main>
   );

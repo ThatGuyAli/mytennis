@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { MatchesOverviewSection } from "@/app/components/matches-overview-section";
 import { getPublicStandingsLeagueDetails, getPublicStandingsLeagues } from "@/lib/api";
 import { buildLeagueStandings, type ComputedStandingRow } from "@/lib/standings";
 import { APP_COLORS } from "@/lib/theme-colors";
@@ -9,13 +10,24 @@ import { APP_COLORS } from "@/lib/theme-colors";
 type LeagueRow = {
   id: string;
   name: string;
+  rule_type: "three_sets" | "two_sets_tiebreak";
+  first_round_weeks: number;
   scoring_rule_type: number;
 };
 
 type LeagueDetailsPayload = {
   league: LeagueRow;
   players: Array<{ id: string; name: string }>;
-  matches: Array<{ id: string; player1_id: string; player2_id: string }>;
+  matches: Array<{
+    id: string;
+    week_number: number;
+    status: "scheduled" | "completed" | "dnf" | "dns";
+    played_at: string | null;
+    player1_id: string;
+    player2_id: string;
+    player1_name: string;
+    player2_name: string;
+  }>;
   sets: Array<{
     match_id: string;
     set_number: number;
@@ -42,6 +54,8 @@ export function StandingsClient() {
   const [isExpanded, setIsExpanded] = useState(false);
   const [sortBy, setSortBy] = useState<keyof ComputedStandingRow>("position");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [selectedWeekByLeague, setSelectedWeekByLeague] = useState<Record<string, number>>({});
+  const [selectedLeagueDetails, setSelectedLeagueDetails] = useState<LeagueDetailsPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState<Notice>(null);
 
@@ -83,6 +97,13 @@ export function StandingsClient() {
     return `${label} ${sortDirection === "asc" ? "▲" : "▼"}`;
   }
 
+  function getPlayerStatus(row: ComputedStandingRow, position: number, totalPlayers: number) {
+    if (row.matches_played === 0) return "No Match";
+    if (position === 1) return "Leader";
+    if (position <= Math.ceil(totalPlayers / 2)) return "Top Half";
+    return "Bottom Half";
+  }
+
   async function loadLeagues() {
     const data = await getPublicStandingsLeagues<{ leagues: LeagueRow[] }>();
     setLeagues(data.leagues);
@@ -91,10 +112,12 @@ export function StandingsClient() {
   async function loadStandingsForLeague(leagueId: string) {
     if (!leagueId) {
       setStandings([]);
+      setSelectedLeagueDetails(null);
       return;
     }
 
     const details = await getPublicStandingsLeagueDetails<LeagueDetailsPayload>(leagueId);
+    setSelectedLeagueDetails(details);
     const table = buildLeagueStandings(
       details.players,
       details.matches,
@@ -135,6 +158,64 @@ export function StandingsClient() {
     }
   }
 
+  function getDefaultWeekForLeague(
+    league: { id: string; name: string; rule_type: "three_sets" | "two_sets_tiebreak"; first_round_weeks: number },
+    matches: Array<{ week_number: number; played_at: string | null }>,
+  ): number {
+    if (matches.length === 0) return 1;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const weekDates = new Map<number, number>();
+    for (const m of matches) {
+      if (!m.played_at) continue;
+      const d = new Date(m.played_at).getTime();
+      const current = weekDates.get(m.week_number);
+      if (current === undefined || d < current) weekDates.set(m.week_number, d);
+    }
+    let soonestFutureWeek: number | null = null;
+    let soonestFutureTime = Infinity;
+    let mostRecentPastWeek: number | null = null;
+    let mostRecentPastTime = -Infinity;
+    for (const [week, time] of weekDates) {
+      if (time >= today.getTime() && time < soonestFutureTime) {
+        soonestFutureWeek = week;
+        soonestFutureTime = time;
+      }
+      if (time < today.getTime() && time > mostRecentPastTime) {
+        mostRecentPastWeek = week;
+        mostRecentPastTime = time;
+      }
+    }
+    return soonestFutureWeek ?? mostRecentPastWeek ?? 1;
+  }
+
+  const matchesByLeague = useMemo(() => {
+    if (!selectedLeagueDetails?.league) return [] as Array<{
+      league: LeagueRow;
+      matches: Array<{
+        id: string;
+        league_id: string;
+        league_name: string;
+        player1_name: string;
+        player2_name: string;
+        week_number: number;
+        played_at: string | null;
+        status: "scheduled" | "completed" | "dnf" | "dns";
+      }>;
+    }>;
+
+    return [
+      {
+        league: selectedLeagueDetails.league,
+        matches: selectedLeagueDetails.matches.map((match) => ({
+          ...match,
+          league_id: selectedLeagueDetails.league.id,
+          league_name: selectedLeagueDetails.league.name,
+        })),
+      },
+    ];
+  }, [selectedLeagueDetails]);
+
   return (
     <section className="relative mx-auto max-w-6xl space-y-6 py-8">
       {notice ? (
@@ -165,14 +246,16 @@ export function StandingsClient() {
           <h2 className="text-lg font-semibold" style={{ color: APP_COLORS.login.title }}>
             Select League
           </h2>
-          <button
-            type="button"
-            onClick={() => setIsExpanded((prev) => !prev)}
-            className="rounded-lg border px-3 py-1 text-xs hover:bg-white/70"
-            style={{ borderColor: APP_COLORS.login.panelBorder, color: APP_COLORS.login.subtitle }}
-          >
-            {isExpanded ? "Collapse Columns" : "Expand Columns"}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsExpanded((prev) => !prev)}
+              className="rounded-lg border px-3 py-1 text-xs hover:bg-white/70"
+              style={{ borderColor: APP_COLORS.login.panelBorder, color: APP_COLORS.login.subtitle }}
+            >
+              {isExpanded ? "Collapse Columns" : "Expand Columns"}
+            </button>
+          </div>
         </div>
         <div className="mt-3 max-w-md">
           <select
@@ -197,7 +280,7 @@ export function StandingsClient() {
               <tr className="border-b" style={{ borderColor: APP_COLORS.login.panelBorder }}>
                 <th className="px-3 py-2 text-left">
                   <button type="button" onClick={() => onSort("position")} className="hover:underline">
-                    {sortLabel("position", "#")}
+                    {sortLabel("position", "Ranking")}
                   </button>
                 </th>
                 <th className="px-3 py-2 text-left">
@@ -205,73 +288,74 @@ export function StandingsClient() {
                     {sortLabel("player_name", "Player")}
                   </button>
                 </th>
+                {isExpanded ? (
+                  <th className="px-3 py-2 text-center">
+                    <button type="button" onClick={() => onSort("points")} className="hover:underline">
+                      {sortLabel("points", "Points")}
+                    </button>
+                  </th>
+                ) : null}
                 <th className="px-3 py-2 text-center">
                   <button type="button" onClick={() => onSort("matches_played")} className="hover:underline">
-                    {sortLabel("matches_played", "MP")}
-                  </button>
-                </th>
-                <th className="px-3 py-2 text-center">
-                  <button type="button" onClick={() => onSort("sets_won")} className="hover:underline">
-                    {sortLabel("sets_won", "SW")}
+                    {sortLabel("matches_played", "Matches Played")}
                   </button>
                 </th>
                 {isExpanded ? (
                   <>
                     <th className="px-3 py-2 text-center">
-                      <button type="button" onClick={() => onSort("matches_won")} className="hover:underline">
-                        {sortLabel("matches_won", "W")}
+                      Matches W-L-D
+                    </th>
+                    <th className="px-3 py-2 text-center">
+                      <button type="button" onClick={() => onSort("sets_won")} className="hover:underline">
+                        Sets Won/Lost
                       </button>
                     </th>
                     <th className="px-3 py-2 text-center">
-                      <button type="button" onClick={() => onSort("matches_lost")} className="hover:underline">
-                        {sortLabel("matches_lost", "L")}
+                      <button
+                        type="button"
+                        onClick={() => onSort("set_win_loss_percentage")}
+                        className="hover:underline"
+                      >
+                        {sortLabel("set_win_loss_percentage", "Sets W/L %")}
                       </button>
                     </th>
                     <th className="px-3 py-2 text-center">
-                      <button type="button" onClick={() => onSort("matches_drawn")} className="hover:underline">
-                        {sortLabel("matches_drawn", "D")}
+                      <button
+                        type="button"
+                        onClick={() => onSort("game_win_loss_percentage")}
+                        className="hover:underline"
+                      >
+                        {sortLabel("game_win_loss_percentage", "Game W/L %")}
                       </button>
                     </th>
-                    <th className="px-3 py-2 text-center">
-                      <button type="button" onClick={() => onSort("sets_lost")} className="hover:underline">
-                        {sortLabel("sets_lost", "Sets L")}
-                      </button>
-                    </th>
-                    <th className="px-3 py-2 text-center">
-                      <button type="button" onClick={() => onSort("win_percentage")} className="hover:underline">
-                        {sortLabel("win_percentage", "Win %")}
-                      </button>
-                    </th>
-                    <th className="px-3 py-2 text-center">
-                      <button type="button" onClick={() => onSort("loss_percentage")} className="hover:underline">
-                        {sortLabel("loss_percentage", "Loss %")}
-                      </button>
-                    </th>
+                    <th className="px-3 py-2 text-center">Status</th>
                   </>
                 ) : null}
-                <th className="px-3 py-2 text-center">
-                  <button type="button" onClick={() => onSort("points")} className="hover:underline">
-                    {sortLabel("points", "Points")}
-                  </button>
-                </th>
+                {!isExpanded ? (
+                  <th className="px-3 py-2 text-center">
+                    <button type="button" onClick={() => onSort("points")} className="hover:underline">
+                      {sortLabel("points", "Points")}
+                    </button>
+                  </th>
+                ) : null}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td className="px-3 py-3" colSpan={isExpanded ? 11 : 5} style={{ color: APP_COLORS.login.subtitle }}>
+                  <td className="px-3 py-3" colSpan={isExpanded ? 9 : 4} style={{ color: APP_COLORS.login.subtitle }}>
                     Loading standings...
                   </td>
                 </tr>
               ) : !selectedLeagueId ? (
                 <tr>
-                  <td className="px-3 py-3" colSpan={isExpanded ? 11 : 5} style={{ color: APP_COLORS.login.subtitle }}>
+                  <td className="px-3 py-3" colSpan={isExpanded ? 9 : 4} style={{ color: APP_COLORS.login.subtitle }}>
                     Select a league to view standings.
                   </td>
                 </tr>
               ) : standings.length === 0 ? (
                 <tr>
-                  <td className="px-3 py-3" colSpan={isExpanded ? 11 : 5} style={{ color: APP_COLORS.login.subtitle }}>
+                  <td className="px-3 py-3" colSpan={isExpanded ? 9 : 4} style={{ color: APP_COLORS.login.subtitle }}>
                     No standings yet for {selectedLeagueName || "this league"}.
                   </td>
                 </tr>
@@ -284,26 +368,90 @@ export function StandingsClient() {
                   >
                     <td className="px-3 py-2">{row.position}</td>
                     <td className="px-3 py-2">{row.player_name}</td>
+                    {isExpanded ? <td className="px-3 py-2 text-center font-medium">{row.points}</td> : null}
                     <td className="px-3 py-2 text-center">{row.matches_played}</td>
-                    <td className="px-3 py-2 text-center">{row.sets_won}</td>
                     {isExpanded ? (
                       <>
-                        <td className="px-3 py-2 text-center">{row.matches_won}</td>
-                        <td className="px-3 py-2 text-center">{row.matches_lost}</td>
-                        <td className="px-3 py-2 text-center">{row.matches_drawn}</td>
-                        <td className="px-3 py-2 text-center">{row.sets_lost}</td>
-                        <td className="px-3 py-2 text-center">{row.win_percentage}%</td>
-                        <td className="px-3 py-2 text-center">{row.loss_percentage}%</td>
+                        <td className="px-3 py-2 text-center">
+                          {row.matches_won}-{row.matches_lost}-{row.matches_drawn}
+                        </td>
+                        <td className="px-3 py-2 text-center">
+                          {row.sets_won}/{row.sets_lost}
+                        </td>
+                        <td className="px-3 py-2 text-center">{row.set_win_loss_percentage}%</td>
+                        <td className="px-3 py-2 text-center">{row.game_win_loss_percentage}%</td>
+                        <td className="px-3 py-2 text-center">
+                          {getPlayerStatus(row, index + 1, sortedStandings.length)}
+                        </td>
                       </>
                     ) : null}
-                    <td className="px-3 py-2 text-center font-medium">{row.points}</td>
+                    {!isExpanded ? <td className="px-3 py-2 text-center font-medium">{row.points}</td> : null}
                   </tr>
                 ))
               )}
             </tbody>
           </table>
         </div>
+        <div
+          className="mt-3 rounded-lg border p-3 text-xs"
+          style={{
+            borderColor: APP_COLORS.login.panelBorder,
+            color: APP_COLORS.login.subtitle,
+            backgroundColor: "#ffffffcc",
+          }}
+        >
+          <p>
+            <strong>Column guide:</strong> Ranking = Position, Matches Played = Total matches,
+            Matches W-L-D = Won-Lost-Drawn, Sets Won/Lost = Total sets won/lost, Sets W/L % =
+            Sets won percentage, Game W/L % = Games won percentage, Status = Current standing
+            label, Points = Total points.
+          </p>
+        </div>
       </section>
+
+      {selectedLeagueDetails ? (
+        <MatchesOverviewSection
+          title="Matches Overview"
+          readOnly
+          matchesByLeague={matchesByLeague}
+          selectedWeekByLeague={selectedWeekByLeague}
+          onChangeLeagueWeek={(leagueId, week) =>
+            setSelectedWeekByLeague((prev) => ({ ...prev, [leagueId]: week }))
+          }
+          getDefaultWeekForLeague={getDefaultWeekForLeague}
+          setsByMatch={new Map(
+            selectedLeagueDetails.sets.reduce<Array<[string, LeagueDetailsPayload["sets"]]>>(
+              (acc, set) => {
+                const existing = acc.find(([matchId]) => matchId === set.match_id);
+                if (existing) {
+                  existing[1].push(set);
+                } else {
+                  acc.push([set.match_id, [set]]);
+                }
+                return acc;
+              },
+              [],
+            ),
+          )}
+          editingResultMatchId=""
+          editingResultRuleType="three_sets"
+          inlineSetRows={[
+            { set_number: 1, player1_games: "0", player2_games: "0" },
+            { set_number: 2, player1_games: "0", player2_games: "0" },
+            { set_number: 3, player1_games: "0", player2_games: "0" },
+          ]}
+          inlineResultIsDns={false}
+          inlineResultIsDnf={false}
+          busy={false}
+          isTieBreakThirdSetActive={() => false}
+          updateInlineSetRow={() => {}}
+          setInlineResultIsDnf={() => {}}
+          setInlineResultIsDns={() => {}}
+          onSaveInlineResult={async () => {}}
+          onCancelInlineResultEdit={() => {}}
+          onStartInlineResultEdit={() => {}}
+        />
+      ) : null}
     </section>
   );
 }

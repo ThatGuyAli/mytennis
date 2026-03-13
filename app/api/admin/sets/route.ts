@@ -10,6 +10,10 @@ type CreateSetBody = {
   player1_games?: number;
   player2_games?: number;
   is_tiebreak?: boolean;
+  /** When true, match status is set to 'dnf' instead of 'completed' */
+  status_dnf?: boolean;
+  /** When true, match status is set to 'dns' instead of 'completed' */
+  status_dns?: boolean;
 };
 
 export async function POST(request: NextRequest) {
@@ -30,6 +34,8 @@ export async function POST(request: NextRequest) {
   const player1Games = Number(body?.player1_games);
   const player2Games = Number(body?.player2_games);
   const isTiebreak = Boolean(body?.is_tiebreak);
+  const statusDnf = Boolean(body?.status_dnf);
+  const statusDns = Boolean(body?.status_dns);
 
   if (!matchId) {
     return badRequestResponse("A match must be selected.");
@@ -45,6 +51,16 @@ export async function POST(request: NextRequest) {
 
   if (player1Games < 0 || player2Games < 0) {
     return badRequestResponse("Game counts cannot be negative.");
+  }
+
+  if (statusDns) {
+    const is60 = player1Games === 6 && player2Games === 0;
+    const is06 = player1Games === 0 && player2Games === 6;
+    if (!is60 && !is06) {
+      return badRequestResponse(
+        "For DNS, each set must be 6-0 or 0-6. Both sets must match (6-0 6-0 or 0-6 0-6).",
+      );
+    }
   }
 
   const matchExists = await query<{ id: string }>(
@@ -77,13 +93,14 @@ export async function POST(request: NextRequest) {
     [matchId, setNumber, player1Games, player2Games, isTiebreak],
   );
 
+  const matchStatus = statusDns ? "dns" : statusDnf ? "dnf" : "completed";
   await query(
     `UPDATE matches
-     SET status = 'completed',
+     SET status = $2,
          updated_at = now(),
-         updated_by = $2
+         updated_by = $3
      WHERE id = $1`,
-    [matchId, session.userId],
+    [matchId, matchStatus, session.userId],
   );
 
   return NextResponse.json({ data: { upserted: true } }, { status: 201 });

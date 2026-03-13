@@ -108,6 +108,8 @@ export type AddPlayerToLeagueInput = {
 export type MatchStatus =
   | "scheduled"
   | "completed"
+  | "dnf"
+  | "dns"
 
 export type Match = {
   id: string
