@@ -51,7 +51,7 @@ CREATE TABLE leagues (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name text NOT NULL,
   active int NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
-  scoring_rule_type int NOT NULL DEFAULT 1 CHECK (scoring_rule_type IN (1, 2, 3, 4, 5)),
+  scoring_rule_type int NOT NULL DEFAULT 1 CHECK (scoring_rule_type IN (1, 2)),
   number_of_players int NOT NULL CHECK (number_of_players > 0),
   first_round_weeks int NOT NULL CHECK (first_round_weeks > 0),
 

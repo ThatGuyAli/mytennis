@@ -7,7 +7,7 @@ import type { LeagueRule } from "@/types";
 import { badRequestResponse, getApiSession, unauthorizedResponse } from "../utils";
 
 const VALID_RULE_TYPES: LeagueRule[] = ["three_sets", "two_sets_tiebreak"];
-const VALID_SCORING_RULE_TYPES = [1, 2, 3, 4, 5] as const;
+const VALID_SCORING_RULE_TYPES = [1, 2] as const;
 
 type CreateLeagueBody = {
   name?: string;
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
     return badRequestResponse("Invalid league rule type.");
   }
   if (!VALID_SCORING_RULE_TYPES.includes(scoringRuleType as (typeof VALID_SCORING_RULE_TYPES)[number])) {
-    return badRequestResponse("Invalid scoring_rule_type. Allowed values are 1, 2, 3, 4, 5.");
+    return badRequestResponse("Invalid scoring_rule_type. Allowed values are 1, 2.");
   }
 
   if (!Number.isInteger(numberOfPlayers) || numberOfPlayers < 2) {
@@ -173,7 +173,7 @@ export async function PATCH(request: NextRequest) {
       scoringRuleType as (typeof VALID_SCORING_RULE_TYPES)[number],
     )
   ) {
-    return badRequestResponse("Invalid scoring_rule_type. Allowed values are 1, 2, 3, 4, 5.");
+    return badRequestResponse("Invalid scoring_rule_type. Allowed values are 1, 2.");
   }
 
   const normalizedActive = hasActive ? Number(body?.active) : null;

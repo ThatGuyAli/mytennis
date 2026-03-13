@@ -143,25 +143,15 @@ export function buildLeagueStandings(
           p2.matches_lost += 1;
           p1.sets_won += 1;
           p2.sets_lost += 1;
-          if (scoringRuleType === LeagueScoringRuleType.STANDARD_THREE_SETS_THIRD_SET_TIEBREAK) {
-            p1.points += 1.5;
-            p2.points += 1;
-          } else {
-            p1.points += 2;
-            p2.points += 1;
-          }
+          p1.points += 1.5;
+          p2.points += 1;
         } else if (p2LeadsLast) {
           p2.matches_won += 1;
           p1.matches_lost += 1;
           p2.sets_won += 1;
           p1.sets_lost += 1;
-          if (scoringRuleType === LeagueScoringRuleType.STANDARD_THREE_SETS_THIRD_SET_TIEBREAK) {
-            p2.points += 1.5;
-            p1.points += 1;
-          } else {
-            p2.points += 2;
-            p1.points += 1;
-          }
+          p2.points += 1.5;
+          p1.points += 1;
         } else {
           p1.matches_drawn += 1;
           p2.matches_drawn += 1;

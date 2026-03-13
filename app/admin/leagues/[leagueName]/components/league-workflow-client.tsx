@@ -141,11 +141,8 @@ const RULE_LABELS: Record<LeagueRule, string> = {
 };
 
 const SCORING_RULE_LABELS: Record<number, string> = {
-  1: "Rule 1 - Simple (3/0, draw 1)",
-  2: "Rule 2 - Weighted Tie-break",
-  3: "Rule 3 - Standard Three Sets",
-  4: "Rule 4 - Standard Three Sets (Third Set Tie-break)",
-  5: "Rule 5 (Reserved)",
+  1: "Rule 1 - Standard Three Sets",
+  2: "Rule 2 - Standard Three Sets (Third Set Tie-break)",
 };
 
 const CREATE_NEW_PLAYER_OPTION = "__create_new_player__";
@@ -1261,14 +1258,14 @@ export function LeagueWorkflowClient() {
                           }
                           className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
                         >
-                          {!["3", "4"].includes(leagueForm.scoring_rule_type) ? (
+                          {!["1", "2"].includes(leagueForm.scoring_rule_type) ? (
                             <option value={leagueForm.scoring_rule_type}>
                               {SCORING_RULE_LABELS[Number(leagueForm.scoring_rule_type)] ??
                                 `Rule ${leagueForm.scoring_rule_type}`}
                             </option>
                           ) : null}
-                          <option value="3">{SCORING_RULE_LABELS[3]}</option>
-                          <option value="4">{SCORING_RULE_LABELS[4]}</option>
+                          <option value="1">{SCORING_RULE_LABELS[1]}</option>
+                          <option value="2">{SCORING_RULE_LABELS[2]}</option>
                         </select>
                       ) : (
                         <span>

@@ -151,12 +151,12 @@ export function CreateLeagueClient() {
         <select
           name="scoring_rule_type"
           required
-          defaultValue="3"
+          defaultValue="1"
           className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
           style={{ borderColor: APP_COLORS.login.panelBorder }}
         >
-          <option value="3">Scoring Rule 1 - Standard Three Sets</option>
-          <option value="4">Scoring Rule 2 - Standard Two Sets/Tie-break</option>
+          <option value="1">Scoring Rule 1 - Standard Three Sets</option>
+          <option value="2">Scoring Rule 2 - Standard Three Sets (Third Set Tie-break)</option>
         </select>
         <input
           name="number_of_players"
